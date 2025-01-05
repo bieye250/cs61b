@@ -1,5 +1,3 @@
-import java.util.Properties;
-
 public class GetEnvironmentVariables {
 
     //  Fill in the path to your sp21-s*** folder between the quotes
