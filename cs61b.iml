@@ -6,9 +6,10 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/test" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/lab1" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lab2setup" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lab2" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="library-sp24" level="project" />
   </component>
 </module>
