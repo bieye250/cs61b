@@ -67,7 +67,7 @@ public class ArrayDeque<T> implements Deque<T> {
         T t = array[(first++) % len];
         int s = size();
         if (len >= 16 && s < len / 4) {
-            reSize((int) (s * 1.01));
+            reSize((Math.max((int) Math.round(s * 1.1), 8)));
         }
         return t;
     }

@@ -56,5 +56,15 @@ public class ArrayDequeTest {
         for (int i = 0; i < 1000; i++) {
             assertEquals(i+1, (int) arrayDeque.get(i));
         }
+
+        for (int i = 1000; i > 500; i--) {
+            Integer t = arrayDeque.removeLast();
+            assertEquals(i, (int) t);
+        }
+        for (int i = 1; i <= 500; i++){
+            Integer t = arrayDeque.removeFirst();
+            assertEquals(i, (int) t);
+        }
+        assertEquals(8, arrayDeque.size());
     }
 }
