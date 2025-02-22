@@ -64,7 +64,8 @@ public class ArrayDeque<T> implements Deque<T> {
     @Override
     public T removeFirst() {
         if (isEmpty()) return null;
-        T t = array[(first++) % len];
+        T t = array[first++];
+        first %= len;
         int s = size();
         if (len >= 16 && s < len / 4) {
             reSize((Math.max((int) Math.round(s * 1.1), 8)));
@@ -76,7 +77,8 @@ public class ArrayDeque<T> implements Deque<T> {
     public T removeLast() {
         if (isEmpty()) return null;
 
-        T t = array[(len + (--last)) % len];
+        last = (len + (--last)) % len;
+        T t = array[last];
         int s = size();
         if (len >= 16 && s < len / 4) {
             reSize((int) Math.round(s * 1.1));
