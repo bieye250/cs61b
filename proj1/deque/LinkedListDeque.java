@@ -86,7 +86,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeFirst() {
-        if (isEmpty()) return null;
+        if (isEmpty()) {return null;}
         Node<T> node = first.next;
         if (size == 1) {
             first.next = first;
@@ -101,7 +101,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeLast() {
-        if (isEmpty()) return null;
+        if (isEmpty()) {return null;}
 
         Node<T> last = first.prev;
         if (size == 1) {
@@ -117,7 +117,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T get(int index) {
-        if (size <= index) return null;
+        if (size <= index) {return null;}
         Node<T> node = first.next;
         for (int i = 0; i < index; i++) {
             node = node.next;
@@ -131,26 +131,26 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
     }
 
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof LinkedListDeque)) return false;
+        if (o == this) {return true;}
+        if (!(o instanceof LinkedListDeque)) {return false;}
 
         Iterator<T> i1 = iterator();
         Iterator<?> i2 = ((LinkedListDeque<?>) o).iterator();
         while (i1.hasNext() && i2.hasNext()) {
             T t1 = i1.next();
             Object t2 = i2.next();
-            if (!(t1 == null || t2 == null || t1.equals(t2))) return false;
+            if (!(t1 == null || t2 == null || t1.equals(t2))) {return false;}
         }
         return !(i1.hasNext() || i2.hasNext());
     }
 
     public T getRecursive(int index) {
-        if (index >= size) return null;
+        if (index >= size) {return null;}
         return getRecursiveHelp(index, first.next);
     }
 
     private T getRecursiveHelp(int index, Node<T> node) {
-        if (index == 0) return node.t;
+        if (index == 0) {return node.t;}
         return getRecursiveHelp(--index, node.next);
     }
 
@@ -165,8 +165,10 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
         @Override
         public T next() {
-            if (index < size) return get(index++);
-            else return null;
+            if (index < size) {return get(index++);}
+            else {
+                return null;
+            }
         }
     }
 }

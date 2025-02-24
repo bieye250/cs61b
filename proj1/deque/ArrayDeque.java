@@ -1,6 +1,8 @@
 package deque;
 
-public class ArrayDeque<T> implements Deque<T> {
+import java.util.Iterator;
+
+public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     private T[] array;
 
@@ -21,10 +23,11 @@ public class ArrayDeque<T> implements Deque<T> {
     public void addFirst(T item) {
         if (isEmpty()) {
             addLast(item);
-            return ;
+            return;
         }
-        if (isFull())
+        if (isFull()){
             reSize(len < 128 ? len << 1 : (int) Math.round(len * 1.1));
+        }
         first = (first + len - 1) % len;
         array[first] = item;
 
@@ -32,8 +35,9 @@ public class ArrayDeque<T> implements Deque<T> {
 
     @Override
     public void addLast(T item) {
-        if (isFull())
+        if (isFull()) {
             reSize(len < 128 ? len << 1 : (int) Math.round(len * 1.1));
+        }
         array[last] = item;
         last = (last + 1) % len;
     }
@@ -63,7 +67,7 @@ public class ArrayDeque<T> implements Deque<T> {
 
     @Override
     public T removeFirst() {
-        if (isEmpty()) return null;
+        if (isEmpty()) {return null;}
         T t = array[first++];
         first %= len;
         int s = size();
@@ -75,7 +79,7 @@ public class ArrayDeque<T> implements Deque<T> {
 
     @Override
     public T removeLast() {
-        if (isEmpty()) return null;
+        if (isEmpty()) {return null;}
 
         last = (len + (--last)) % len;
         T t = array[last];
@@ -105,5 +109,34 @@ public class ArrayDeque<T> implements Deque<T> {
         first = 0;
         last = i;
         len = cap;
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+        return new ArrayIterator();
+    }
+
+    private class ArrayIterator implements Iterator<T>{
+
+        private int idx;
+
+        @Override
+        public boolean hasNext() {
+            return idx + 1 == last;
+        }
+
+        @Override
+        public T next() {
+            if(idx < size()) {
+                return array[(first + idx++) % len];
+            }
+            else {
+                return null;
+            }
+        }
+
+        public ArrayIterator(){
+            idx = 0;
+        }
     }
 }
