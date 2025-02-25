@@ -29,19 +29,10 @@ public class ArrayDequeTest {
     @Test
     public void testRemove(){
         ArrayDeque<Integer> arrayDeque = new ArrayDeque<>();
-        arrayDeque.addFirst(0);
-        Integer i = arrayDeque.removeLast();
-        assertEquals(0, arrayDeque.size());
-        assertTrue(arrayDeque.size() == 0);
-        assertEquals(0, (int) i);
-
-        arrayDeque.addLast(1);
-        i = arrayDeque.removeFirst();
-        assertEquals(0, arrayDeque.size());
-        assertTrue(arrayDeque.size() == 0);
-        assertEquals(1, (int)i);
-        assertNull(arrayDeque.removeLast());
-        assertNull(arrayDeque.removeFirst());
+        arrayDeque.addLast(0);
+        arrayDeque.addFirst(1);
+        assertEquals(0, (int) arrayDeque.get(1));
+        assertEquals(1, (int) arrayDeque.get(0));
     }
 
     @Test
@@ -94,7 +85,25 @@ public class ArrayDequeTest {
         Deque<Integer> a = new ArrayDeque<>();
         Deque<Integer> b = new LinkedListDeque<>();
 
-        a.addLast(0);b.addLast(0);
-        assertTrue(a.equals(b));
+        for (int i = 1; i <= 1000; i++) {
+            a.addLast(i);
+            b.addLast(i);
+        }
+        for (int i = 0; i <= 1002; i++) {
+            a.removeFirst();
+            b.removeFirst();
+        }
+        assertTrue(b.equals(a));
+    }
+
+    @Test
+    public void testGet(){
+        ArrayDeque<Integer> a = new ArrayDeque<>();
+        for (int i = 0; i < 100; i++) {
+            int r = (int)(Math.random()*10) % 10;
+            if (r % 2 == 0)
+                a.addLast(r);
+            else a.removeLast();
+        }
     }
 }

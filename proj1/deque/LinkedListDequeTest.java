@@ -174,8 +174,8 @@ public class LinkedListDequeTest {
         LinkedListDeque<Integer> a = new LinkedListDeque<>();
         ArrayDeque<Integer> b = new ArrayDeque<>();
 
-        a.addLast(0);
-        b.addLast(0);
+        a.addLast(0);a.addLast(1);
+        b.addLast(0);b.addLast(1);
         assertTrue(a.equals(b));
     }
 }

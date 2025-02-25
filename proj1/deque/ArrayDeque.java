@@ -89,7 +89,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         T t = array[last];
         int s = size();
         if (len >= 16 && s < len / 4) {
-            reSize((int) Math.round(s * 1.1));
+            reSize((Math.max((int) Math.round(s * 1.1), 8)));
         }
         return t;
     }
@@ -138,7 +138,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
             }
         }
 
-        ArrayIterator(){
+        ArrayIterator() {
             idx = 0;
         }
     }
@@ -148,7 +148,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque) ) {
+        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque)) {
             return false;
         }
         Deque t = (Deque) o;

@@ -46,7 +46,7 @@ public class MaxArrayDeque<T> {
         last = (last + 1) % len;
     }
 
-    private boolean isEmpty() {
+    public boolean isEmpty() {
         return first == last;
     }
 

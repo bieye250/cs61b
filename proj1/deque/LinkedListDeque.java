@@ -140,14 +140,14 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque) ) {
+        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque)) {
             return false;
         }
 
         Deque t = (Deque) o;
         int i1 = this.size(), i2 = t.size();
         while (i1 > 0 && i2 > 0) {
-            if(!this.get(--i1).equals(t.get(--i2))){
+            if (!this.get(--i1).equals(t.get(--i2))) {
                 return false;
             }
         }
