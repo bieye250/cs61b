@@ -42,10 +42,10 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         last = (last + 1) % len;
     }
 
-    @Override
-    public boolean isEmpty() {
-        return first == last;
-    }
+//    @Override
+//    public boolean isEmpty() {
+//        return first == last;
+//    }
 
     @Override
     public int size() {
@@ -126,33 +126,32 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
         @Override
         public boolean hasNext() {
-            return idx + 1 == last;
+            return idx + 1 == size();
         }
 
         @Override
         public T next() {
             if (idx < size()) {
                 return array[(first + idx++) % len];
-            }
-            else {
+            } else {
                 return null;
             }
         }
 
-         ArrayIterator(){
+        ArrayIterator(){
             idx = 0;
         }
     }
 
     @Override
-    public boolean equals(Object o){
+    public boolean equals(Object o) {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ArrayDeque)) {
+        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque) ) {
             return false;
         }
-        ArrayDeque t = (ArrayDeque) o;
+        Deque t = (Deque) o;
         int i1 = this.size(), i2 = t.size();
         if (i1 != i2) {
             return false;

@@ -61,10 +61,10 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         size++;
     }
 
-    @Override
-    public boolean isEmpty() {
-        return size == 0;
-    }
+//    @Override
+//    public boolean isEmpty() {
+//        return size == 0;
+//    }
 
     @Override
     public int size() {
@@ -140,20 +140,18 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         if (o == this) {
             return true;
         }
-        if (!(o instanceof LinkedListDeque)) {
+        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque) ) {
             return false;
         }
 
-        Iterator<T> i1 = iterator();
-        Iterator<?> i2 = ((LinkedListDeque<?>) o).iterator();
-        while (i1.hasNext() && i2.hasNext()) {
-            T t1 = i1.next();
-            Object t2 = i2.next();
-            if (!(t1 == null || t2 == null || t1.equals(t2))) {
+        Deque t = (Deque) o;
+        int i1 = this.size(), i2 = t.size();
+        while (i1 > 0 && i2 > 0) {
+            if(!this.get(--i1).equals(t.get(--i2))){
                 return false;
             }
         }
-        return !(i1.hasNext() || i2.hasNext());
+        return i1 == 0 && i2 == 0;
     }
 
     public T getRecursive(int index) {
@@ -183,8 +181,7 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
         public T next() {
             if (index < size) {
                 return get(index++);
-            }
-            else {
+            } else {
                 return null;
             }
         }

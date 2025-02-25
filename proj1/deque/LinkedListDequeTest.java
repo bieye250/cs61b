@@ -168,4 +168,14 @@ public class LinkedListDequeTest {
 
         assertTrue(a.equals(b));
     }
+
+    @Test
+    public void testSameWithArrayDeque() {
+        LinkedListDeque<Integer> a = new LinkedListDeque<>();
+        ArrayDeque<Integer> b = new ArrayDeque<>();
+
+        a.addLast(0);
+        b.addLast(0);
+        assertTrue(a.equals(b));
+    }
 }

@@ -2,6 +2,8 @@ package deque;
 
 import org.junit.Test;
 
+import java.util.Iterator;
+
 import static org.junit.Assert.*;
 
 public class ArrayDequeTest {
@@ -76,6 +78,23 @@ public class ArrayDequeTest {
         ArrayDeque<Integer> b = new ArrayDeque<>();
         b.addLast(0);b.addLast(1);
 
+        assertTrue(a.equals(b));
+    }
+
+    @Test
+    public void testIterator(){
+        ArrayDeque<Integer> a = new ArrayDeque<>();
+        Iterator<Integer> iterator = a.iterator();
+        a.addLast(0);
+        assertTrue(iterator.hasNext());
+    }
+
+    @Test
+    public void testSameWithLinkedDeque(){
+        Deque<Integer> a = new ArrayDeque<>();
+        Deque<Integer> b = new LinkedListDeque<>();
+
+        a.addLast(0);b.addLast(0);
         assertTrue(a.equals(b));
     }
 }
