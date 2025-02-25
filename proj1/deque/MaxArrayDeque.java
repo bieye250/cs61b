@@ -2,7 +2,7 @@ package deque;
 
 import java.util.Comparator;
 
-public class MaxArrayDeque<T> implements Deque<T> {
+public class MaxArrayDeque<T> {
 
     private T[] array;
 
@@ -16,65 +16,59 @@ public class MaxArrayDeque<T> implements Deque<T> {
 
     private Comparator<T> comparator;
 
-    public MaxArrayDeque() {
+    public MaxArrayDeque(Comparator<T> c) {
         array = (T[]) new Object[MIN_LEN];
         len = MIN_LEN;
         first = 0;
         last = 0;
-    }
-
-    public MaxArrayDeque(Comparator<T> c) {
-        this();
         comparator = c;
     }
 
-    @Override
-    public void addFirst(T item) {
+    private void addFirst(T item) {
         if (isEmpty()) {
             addLast(item);
             return;
         }
 
-        if (isFull())
+        if (isFull()) {
             reSize(len < 128 ? len << 1 : (int) (len * 1.1));
+        }
 
         first = (first - 1 + len) % len;
         array[first] = item;
     }
 
-    @Override
     public void addLast(T item) {
-        if (isFull())
+        if (isFull()) {
             reSize(len < 128 ? len << 1 : (int) (len * 1.1));
-
+        }
         array[last] = item;
         last = (last + 1) % len;
     }
 
-    @Override
-    public boolean isEmpty() {
+    private boolean isEmpty() {
         return first == last;
     }
 
-    @Override
-    public int size() {
+    private int size() {
         return (last + len - first) % len;
     }
 
-    @Override
-    public void printDeque() {
+    private void printDeque() {
         if (!isEmpty()) {
             int idx = 0;
             int size = size();
-            while (idx < size)
+            while (idx < size) {
                 System.out.printf("%s ", array[(first + idx++) % len]);
+            }
         }
         System.out.println();
     }
 
-    @Override
-    public T removeFirst() {
-        if (isEmpty()) return null;
+    private T removeFirst() {
+        if (isEmpty()) {
+            return null;
+        }
 
         T t = array[first];
         first = (first - 1 + len) % len;
@@ -85,9 +79,10 @@ public class MaxArrayDeque<T> implements Deque<T> {
         return t;
     }
 
-    @Override
-    public T removeLast() {
-        if (isEmpty()) return null;
+    private T removeLast() {
+        if (isEmpty()) {
+            return null;
+        }
         T t = array[(len + (--last)) % len];
         int cap = size();
         if (cap >= 16 && cap < len / 4) {
@@ -96,8 +91,7 @@ public class MaxArrayDeque<T> implements Deque<T> {
         return t;
     }
 
-    @Override
-    public T get(int index) {
+    private T get(int index) {
         return index >= size() ? null : array[(first + index) % len];
     }
 
@@ -119,25 +113,33 @@ public class MaxArrayDeque<T> implements Deque<T> {
     }
 
     public T max() {
-        if (isEmpty()) return null;
+        if (isEmpty()) {
+            return null;
+        }
 
         T ans = array[first];
         int cap = size();
         for (int i = 1; i < cap; i++) {
             T t = array[(first + i) % len];
-            if (comparator.compare(ans, t) < 0) ans = t;
+            if (comparator.compare(ans, t) < 0) {
+                ans = t;
+            }
         }
         return ans;
     }
 
     public T max(Comparator<T> c){
-        if (isEmpty()) return null;
+        if (isEmpty()) {
+            return null;
+        }
 
         T ans = array[first];
         int size = size();
         for (int i = 1; i < size; i++) {
             T t = array[(first + i) % len];
-            if (c.compare(ans, t) < 0) ans = t;
+            if (c.compare(ans, t) < 0) {
+                ans = t;
+            }
         }
         return ans;
     }

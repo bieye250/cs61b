@@ -25,7 +25,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
             addLast(item);
             return;
         }
-        if (isFull()){
+        if (isFull()) {
             reSize(len < 128 ? len << 1 : (int) Math.round(len * 1.1));
         }
         first = (first + len - 1) % len;
@@ -67,7 +67,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeFirst() {
-        if (isEmpty()) {return null;}
+        if (isEmpty()) {
+            return null;
+        }
         T t = array[first++];
         first %= len;
         int s = size();
@@ -79,7 +81,9 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
     @Override
     public T removeLast() {
-        if (isEmpty()) {return null;}
+        if (isEmpty()) {
+            return null;
+        }
 
         last = (len + (--last)) % len;
         T t = array[last];
@@ -116,7 +120,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         return new ArrayIterator();
     }
 
-    private class ArrayIterator implements Iterator<T>{
+    private class ArrayIterator implements Iterator<T> {
 
         private int idx;
 
@@ -127,7 +131,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
         @Override
         public T next() {
-            if(idx < size()) {
+            if (idx < size()) {
                 return array[(first + idx++) % len];
             }
             else {
@@ -135,8 +139,29 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
             }
         }
 
-        public ArrayIterator(){
+         ArrayIterator(){
             idx = 0;
         }
+    }
+
+    @Override
+    public boolean equals(Object o){
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ArrayDeque)) {
+            return false;
+        }
+        ArrayDeque t = (ArrayDeque) o;
+        int i1 = this.size(), i2 = t.size();
+        if (i1 != i2) {
+            return false;
+        }
+        while (i1 > 0 && i2 > 0) {
+            if (!this.get(--i1).equals(t.get(--i2))) {
+                return false;
+            }
+        }
+        return i1 == 0 && i2 == 0;
     }
 }

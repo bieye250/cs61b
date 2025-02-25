@@ -30,13 +30,13 @@ public class ArrayDequeTest {
         arrayDeque.addFirst(0);
         Integer i = arrayDeque.removeLast();
         assertEquals(0, arrayDeque.size());
-        assertTrue(arrayDeque.isEmpty());
+        assertTrue(arrayDeque.size() == 0);
         assertEquals(0, (int) i);
 
         arrayDeque.addLast(1);
         i = arrayDeque.removeFirst();
         assertEquals(0, arrayDeque.size());
-        assertTrue(arrayDeque.isEmpty());
+        assertTrue(arrayDeque.size() == 0);
         assertEquals(1, (int)i);
         assertNull(arrayDeque.removeLast());
         assertNull(arrayDeque.removeFirst());
@@ -66,5 +66,16 @@ public class ArrayDequeTest {
             assertEquals(i, (int) t);
         }
         assertEquals(8, arrayDeque.size());
+    }
+
+    @Test
+    public void testSame(){
+        ArrayDeque<Integer> a = new ArrayDeque<>();
+        a.addFirst(0);a.addLast(1);
+
+        ArrayDeque<Integer> b = new ArrayDeque<>();
+        b.addLast(0);b.addLast(1);
+
+        assertTrue(a.equals(b));
     }
 }
