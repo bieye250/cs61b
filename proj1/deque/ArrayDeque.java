@@ -148,7 +148,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ArrayDeque || o instanceof LinkedListDeque)) {
+        if (!(o instanceof Deque)) {
             return false;
         }
         Deque t = (Deque) o;
@@ -161,6 +161,6 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
                 return false;
             }
         }
-        return i1 == 0 && i2 == 0;
+        return true;
     }
 }

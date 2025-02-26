@@ -146,12 +146,15 @@ public class LinkedListDeque<T> implements Deque<T>, Iterable<T> {
 
         Deque t = (Deque) o;
         int i1 = this.size(), i2 = t.size();
+        if (i1 != i2) {
+            return false;
+        }
         while (i1 > 0 && i2 > 0) {
             if (!this.get(--i1).equals(t.get(--i2))) {
                 return false;
             }
         }
-        return i1 == 0 && i2 == 0;
+        return true;
     }
 
     public T getRecursive(int index) {
