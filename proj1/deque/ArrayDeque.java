@@ -126,7 +126,7 @@ public class ArrayDeque<T> implements Deque<T>, Iterable<T> {
 
         @Override
         public boolean hasNext() {
-            return idx + 1 == size();
+            return idx != size();
         }
 
         @Override

@@ -75,9 +75,15 @@ public class ArrayDequeTest {
     @Test
     public void testIterator(){
         ArrayDeque<Integer> a = new ArrayDeque<>();
-        Iterator<Integer> iterator = a.iterator();
-        a.addLast(0);
-        assertTrue(iterator.hasNext());
+        for (int i = 0; i < 1000; i++) {
+            a.addFirst(i);
+        }
+        var i = a.iterator();
+        int t = 999;
+        for (int j = 0; j < 1000; j++) {
+            assertTrue(i.hasNext());
+            assertEquals(t--, (int) i.next());
+        }
     }
 
     @Test
