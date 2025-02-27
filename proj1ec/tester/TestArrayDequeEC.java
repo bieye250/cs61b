@@ -13,20 +13,27 @@ public class TestArrayDequeEC {
         var b = new ArrayDequeSolution<Integer>();
 
         for (int i = 0; i < 500; i++) {
-            int rand = (int) (Math.random()*10);
-            if (rand > 6) {
+            int rand = (int) (Math.random() * 10);
+            if (rand > 8) {
                 deque.addLast("addLast("+i+")\n");
                 a.addLast(i);
                 b.addLast(i);
-            } else if (rand > 3) {
+                assertEquals(deque.toString(),a.size(), b.size());
+            } else if (rand > 6) {
                 deque.addLast("addFirst("+i+")\n");
                 a.addFirst(i);
                 b.addFirst(i);
-            } else if (!a.isEmpty()) {
+                assertEquals(deque.toString(),a.size(), b.size());
+            } else if (rand > 4) {
                 deque.addLast("removeFirst()\n");
                 var a1 = a.removeFirst();
                 var b1 = b.removeFirst();
                 assertEquals(deque.toString(),a1, b1);
+            } else {
+                deque.addLast("removeLast()\n");
+                var a1 = a.removeLast();
+                var b1 = b.removeLast();
+                assertEquals(deque.toString(), a1, b1);
             }
         }
     }
