@@ -1,6 +1,8 @@
 package tester;
 
 import static org.junit.Assert.*;
+
+import edu.princeton.cs.algs4.StdRandom;
 import org.junit.Test;
 import student.StudentArrayDeque;
 
@@ -12,8 +14,8 @@ public class TestArrayDequeEC {
         var a = new StudentArrayDeque<Integer>();
         var b = new ArrayDequeSolution<Integer>();
 
-        for (int i = 0; i < 500; i++) {
-            int rand = (int) (Math.random() * 10);
+        for (int i = 0; i < 5000; i++) {
+            int rand = (int) (StdRandom.random() * 10);
             if (rand > 8) {
                 deque.addLast("addLast("+i+")\n");
                 a.addLast(i);
@@ -24,12 +26,12 @@ public class TestArrayDequeEC {
                 a.addFirst(i);
                 b.addFirst(i);
                 assertEquals(deque.toString(),a.size(), b.size());
-            } else if (rand > 4) {
+            } else if (rand > 4 && a.size() > 0 && b.size() > 0) {
                 deque.addLast("removeFirst()\n");
                 var a1 = a.removeFirst();
                 var b1 = b.removeFirst();
                 assertEquals(deque.toString(),a1, b1);
-            } else {
+            } else if (a.size() > 0 && b.size() > 0) {
                 deque.addLast("removeLast()\n");
                 var a1 = a.removeLast();
                 var b1 = b.removeLast();
