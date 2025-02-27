@@ -16,7 +16,7 @@ public class TestArrayDequeEC {
         var a = new StudentArrayDeque<Integer>();
         var b = new ArrayDequeSolution<Integer>();
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1000; i++) {
             int rand = StdRandom.uniform(0, 13);
             if (rand > 9) {
                 a.addLast(i);
