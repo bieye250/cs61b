@@ -48,9 +48,9 @@ public class TestArrayDequeEC {
 
         @Override
         public void addLast(T t){
-            while (size() > LEN) {
-                removeFirst();
-            }
+//            while (size() > LEN) {
+//                removeFirst();
+//            }
             super.addLast(t);
         }
 
@@ -63,5 +63,21 @@ public class TestArrayDequeEC {
             }
             return str;
         }
+    }
+
+    @Test
+    public void testAG(){
+        StudentArrayDeque<Integer> s = new StudentArrayDeque<>();
+        ArrayDequeSolution<Integer> a = new ArrayDequeSolution<>();
+
+        s.addFirst(12);a.addFirst(12);
+        s.removeFirst();a.removeFirst();
+        s.removeFirst();a.removeFirst();
+        s.removeFirst();a.removeFirst();
+
+        s.addLast(16);a.addFirst(16);
+        s.printDeque();
+        System.out.println();
+        a.printDeque();
     }
 }
