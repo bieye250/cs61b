@@ -102,12 +102,4 @@ public class TestBSTMap {
             assertEquals(t++, (int) i.next());
         }
     }
-
-    @Test
-    public void testRemove() {
-        BSTMap<Integer, Integer> b = new BSTMap<>();
-        b.put(5, 1);
-        b.remove(5);
-        b.printInOrder();
-    }
 }
