@@ -20,44 +20,22 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
         size = 0;
     }
 
-//    private void clearHelp(BSTNode<K, V> h) {
-//        if (h == null) {
-//            return;
-//        }
-//        clearHelp(h.left);
-//        clearHelp(h.right);
-//        h = null;
-//    }
-
     @Override
     public boolean containsKey(K key) {
-       return containsKey(root, key);
-    }
-
-    private boolean containsKey(BSTNode<K,V> h, K key) {
-        if (h == null) {
-            return false;
-        }
-        if (h.key.equals(key)) {
-            return true;
-        } else if (h.key.compareTo(key) > 0) {
-            return containsKey(h.left, key);
-        } else {
-            return containsKey(h.right, key);
-        }
+        return get(root, key) != null;
     }
 
     @Override
     public V get(K key) {
-        return get(root, key);
+        return get(root, key).val;
     }
 
-    private V get(BSTNode<K, V> h, K key) {
+    private BSTNode<K, V> get(BSTNode<K, V> h, K key) {
         if (h == null) {
             return null;
         }
         if (h.key.equals(key)) {
-            return h.val;
+            return h;
         } else if (h.key.compareTo(key) > 0) {
             return get(h.left, key);
         } else {
@@ -105,24 +83,77 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
 
     @Override
     public V remove(K key) {
-        throw new UnsupportedOperationException();
+        var node = get(root, key);
+        remove(root, key, node.val);
+        return node.val;
+    }
 
-//        return null;
+    private BSTNode<K, V> remove(BSTNode<K, V> h, K key, V val) {
+        if (h == null) {
+            return null;
+        } else if (h.key.equals(key) && h.val.equals(val)) {
+            // h is the leaf
+            if (h.left == null && h.right == null) {
+                return null;
+            } else if (h.left == null) { // node only has right child
+                var newNode = h.right;
+                var parent = h;
+                while (newNode.left != null) {
+                    parent = newNode;
+                    newNode = newNode.left;
+                }
+                parent.left = newNode.right;
+                newNode.right = null;
+                h = newNode;
+            } else {    // node has left child
+                var newNode = h.left;
+                var parent = h;
+                while (newNode.right != null) {
+                    parent = newNode;
+                    newNode = newNode.right;
+                }
+                parent.right = newNode.left;
+                newNode.left = null;
+                h = newNode;
+            }
+        } else if (h.key.compareTo(key) > 0) {
+            h.left = remove(h.left, key, val);
+        } else if (h.key.compareTo(key) < 0){
+            h.right = remove(h.right, key, val);
+        }
+        return h;
     }
 
     @Override
     public V remove(K key, V value) {
-        throw new UnsupportedOperationException();
-
-//        return null;
+        remove(root, key, value);
+        return value;
     }
 
     @Override
     public Iterator<K> iterator() {
-        throw new UnsupportedOperationException();
-//        return null;
+        return new BSTMapIter<>();
     }
 
+    private class BSTMapIter<K> implements Iterator<K> {
+        private K[] kArray;
+
+        private int idx;
+
+        BSTMapIter() {
+            kArray = (K[]) keySet().toArray();
+            idx = 0;
+        }
+        @Override
+        public boolean hasNext() {
+            return kArray.length != idx+1;
+        }
+
+        @Override
+        public K next() {
+            return kArray[idx++];
+        }
+    }
     private class BSTNode<K extends Comparable<K>, V> {
         private K key;
         private V val;
