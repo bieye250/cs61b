@@ -108,7 +108,7 @@ public class TestBSTMap {
         b.put(-1, -1);
         b.put(2, 2);
         b.put(0, 0);
-        b.remove(0, 0);
+        b.remove(1);
         b.printInOrder();
     }
 }
