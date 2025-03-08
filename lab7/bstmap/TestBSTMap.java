@@ -104,10 +104,8 @@ public class TestBSTMap {
     @Test
     public void testRemove() {
         BSTMap<Integer, Integer> b = new BSTMap<>();
-        b.put(1, 1);
-        b.put(-1, -1);
-        b.put(2, 2);
-        b.put(0, 0);
+        for (int i = 0; i < 45; i++)
+            b.put(i-20, 1);
         b.remove(1);
         b.printInOrder();
     }

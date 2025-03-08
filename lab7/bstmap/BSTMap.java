@@ -85,7 +85,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
     @Override
     public V remove(K key) {
         var node = get(root, key);
-        root = remove(root, key, node.val);
+        remove(root, key, node.val);
         return node.val;
     }
 
@@ -103,16 +103,21 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
                     parent = newNode;
                     newNode = newNode.left;
                 }
+                if (parent == h) {
+                    return newNode;
+                }
                 parent.left = newNode.right;
-                newNode.left = h.left;
                 newNode.right = h.right;
-                h = newNode;
+                return newNode;
             } else {    // node has left child
                 var newNode = h.left;
                 var parent = h;
                 while (newNode.right != null) {
                     parent = newNode;
                     newNode = newNode.right;
+                }
+                if (h == parent) {
+                    return newNode;
                 }
                 parent.right = newNode.left;
                 newNode.left = h.left;
