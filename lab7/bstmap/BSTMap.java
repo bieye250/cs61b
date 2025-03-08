@@ -85,7 +85,7 @@ public class BSTMap<K extends Comparable<K>, V> implements Map61B<K, V> {
     @Override
     public V remove(K key) {
         var node = get(root, key);
-        remove(root, key, node.val);
+        root = remove(root, key, node.val);
         return node.val;
     }
 

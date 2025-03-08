@@ -1,6 +1,8 @@
 package bstmap;
 
 import static org.junit.Assert.*;
+
+import edu.princeton.cs.algs4.StdRandom;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -104,9 +106,8 @@ public class TestBSTMap {
     @Test
     public void testRemove() {
         BSTMap<Integer, Integer> b = new BSTMap<>();
-        for (int i = 0; i < 45; i++)
-            b.put(i-20, 1);
-        b.remove(1);
+        b.put(5, 1);
+        b.remove(5);
         b.printInOrder();
     }
 }
