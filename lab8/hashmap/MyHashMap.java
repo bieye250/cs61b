@@ -14,7 +14,7 @@ import java.util.stream.Stream;
  */
 public class MyHashMap<K, V> implements Map61B<K, V> {
 
-    private final static int InitialSize = 16;
+    private final static int INITIAL_SIZE = 16;
 
     private int size;
 
@@ -102,11 +102,12 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
      */
     @Override
     public void put(K key, V value) {
-        var node = createNode(key, value);
         var collection = getBucket(key);
-        if (findNodeStream(collection, key).findAny().isPresent()) {   // update node
-            collection.add(node);
+        var opNode = findNodeStream(collection, key).findAny();
+        if (opNode.isPresent()) {   // update node
+            opNode.get().value = value;
         } else {    // insert node
+            var node = createNode(key, value);
             double loadFa = 1.0 * (size + 1) / buckets.length;
             if (loadFa >= loadFactor) { // resize
                 resize();
@@ -122,7 +123,7 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
      * resize
      */
     private void resize() {
-        int len = size <= 128 ? size << 1 : (int) Math.round(size*1.5);
+        int len = size <= 128 ? size << 1 : (int) Math.round(size * 1.5);
         Collection<Node>[] latestBuckets = createTable(len);
         //  reHash
         reHashing(latestBuckets);
@@ -240,23 +241,23 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
 
     /** Constructors */
     public MyHashMap() {
-        this(InitialSize);
+        this(INITIAL_SIZE);
     }
 
-    public MyHashMap(int initialSize) {
-        this(initialSize, loadFactor);
+    public MyHashMap(int INITIALSIZE) {
+        this(INITIALSIZE, loadFactor);
     }
 
     /**
      * MyHashMap constructor that creates a backing array of initialSize.
      * The load factor (# items / # buckets) should always be <= loadFactor
      *
-     * @param initialSize initial size of backing array
+     * @param INITIALSIZE initial size of backing array
      * @param maxLoad maximum load factor
      */
-    public MyHashMap(int initialSize, double maxLoad) {
+    public MyHashMap(int INITIALSIZE, double maxLoad) {
         loadFactor = maxLoad;
-        buckets = createTable(initialSize);
+        buckets = createTable(INITIALSIZE);
     }
 
     /**
@@ -304,7 +305,6 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
         return ans;
     }
 
-    // TODO: Implement the methods of the Map61B Interface below
     // Your code won't compile until you do so!
 
 }
