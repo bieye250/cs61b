@@ -161,6 +161,13 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
      */
     @Override
     public V remove(K key) {
+        var col = getBucket(key);
+        var opNode = findNodeStream(col, key).findAny();
+        if (opNode.isPresent()) {
+            var node = opNode.get();
+            col.remove(node);
+            return node.value;
+        }
         return null;
     }
 
@@ -174,6 +181,13 @@ public class MyHashMap<K, V> implements Map61B<K, V> {
      */
     @Override
     public V remove(K key, V value) {
+        var col = getBucket(key);
+        var opNode = findNodeStream(col, key).findAny();
+        Node node;
+        if (opNode.isPresent() && (node = opNode.get()).value.equals(value)) {
+            col.remove(node);
+            return node.value;
+        }
         return null;
     }
 
