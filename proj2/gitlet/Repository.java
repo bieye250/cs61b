@@ -1,953 +1,600 @@
 package gitlet;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
-import static gitlet.MyUtiles.deleteFile;
-import static gitlet.MyUtiles.mkdir;
-import static gitlet.Stage.getBlobByID;
 import static gitlet.Utils.*;
 
-// TODO: any imports you need here
-
-/**
- * Represents a gitlet repository.
- * TODO: It's a good idea to give a description here of what else this Class
- * does at a high level.
+/** Represents a gitlet repository.
+ *  does at a high level.
  *
- * @author TODO
  */
 public class Repository {
     /**
-     * TODO: add instance variables here.
      *
      * List all instance variables of the Repository class here with a useful
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided two examples for you.
      */
 
-    /**
-     * The current working directory.
-     */
+    /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
-
-    /*
-     *   .gitlet
-     *      |--objects
-     *      |     |--commit and blob
-     *      |--refs
-     *      |    |--heads
-     *      |         |--master
-     *      |--HEAD
-     *      |--stage
-     */
-
-    /**
-     * The .gitlet directory.
-     */
+    /** The .gitlet directory. */
     public static final File GITLET_DIR = join(CWD, ".gitlet");
-    public static final File OBJECT_DIR = join(GITLET_DIR, "objects");
+
+    public static final File OBJECTS_DIR = join(GITLET_DIR, "objects");
+
+    public static final File COMMITS_DIR = join(OBJECTS_DIR, "commits");
+
+    public static final File BLOBS_DIR = join(OBJECTS_DIR, "blobs");
+
     public static final File REFS_DIR = join(GITLET_DIR, "refs");
-    public static final File HEADS_DIR = join(REFS_DIR, "heads");
-    public static final File HEAD_FILE = join(GITLET_DIR, "HEAD");
-    public static final File ADDSTAGE_FILE = join(GITLET_DIR, "add_stage");
-    public static final File REMOVESTAGE_FILE = join(GITLET_DIR, "remove_stage");
 
-    public static Commit currCommit;
+    public static final File HEADS_DIR = join(REFS_DIR, "head");
 
-    public static Stage addStage = new Stage();
-    public static Stage removeStage = new Stage();
-    public static String currBranch;
+    public static final File HEAD = join(GITLET_DIR, "HEAD");
 
-    /* TODO: fill in the rest of this class. */
+    public static final File STAGE = join(GITLET_DIR, "stage");
 
-    /* * init command function */
-    public static void init() {
-        if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already exists in the current directory.");
-            System.exit(0);
-        }
-        mkdir(GITLET_DIR);
-        mkdir(OBJECT_DIR);
-        mkdir(REFS_DIR);
-        mkdir(HEADS_DIR);
+    private static Commit currentCommit;
 
-        initCommit();
-        initHEAD();
-        initHeads();
-    }
+    private static final String MASTER = "master";
 
-    public static void checkIfInitialized() {
-        if (!GITLET_DIR.exists()) {
+    private static void initCheck(){
+        if(!GITLET_DIR.exists()){
             System.out.println("Not in an initialized Gitlet directory.");
             System.exit(0);
         }
     }
 
-    private static void initHEAD() {
-        writeContents(HEAD_FILE, "master");
-    }
+    public static void init(){
+        if(GITLET_DIR.exists()) {
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.exit(0);
+        }
+        COMMITS_DIR.mkdirs();
+        BLOBS_DIR.mkdirs();
+        HEADS_DIR.mkdirs();
+        Stage stage = new Stage();
+        writeStage(stage);
 
-    private static void initCommit() {
         Commit initCommit = new Commit();
-        currCommit = initCommit;
+        //写commit
         initCommit.save();
+
+        //写当前分支名
+        writeContents(HEAD, MASTER);
+
+        //创建新分支
+        updateRefHead(MASTER, initCommit.getHash());
     }
 
-    private static void initHeads() {
-        File HEADS_FILE = join(HEADS_DIR, "master");
-        writeContents(HEADS_FILE, currCommit.getID());
+    private static void updateRefHead(String branchName, String commitHash){
+        File branchFile = join(HEADS_DIR, branchName);
+        writeContents(branchFile, commitHash);
     }
 
-    /* * add command funtion */
-    public static void add(String file) {
-        File fileName = getFileFromCWD(file);
-        if (!fileName.exists()) {
+    public static void add(String fileName){
+        initCheck();
+
+        if(!userFileExists(fileName)){
             System.out.println("File does not exist.");
             System.exit(0);
         }
+
         Blob blob = new Blob(fileName);
-        storeBlob(blob);
-    }
 
-    private static void storeBlob(Blob blob) {
-        currCommit = readCurrCommmit();
-        addStage = readAddStage();
-        removeStage = readRemoveStage();
-        if (!currCommit.getPathToBlobID().containsValue(blob.getBlobID()) ||
-                !removeStage.isNewBlob(blob)) {
-            if (addStage.isNewBlob(blob)) {
-                if (removeStage.isNewBlob(blob)) {
-                    blob.save();
-                    if (addStage.isFilePathExists(blob.getPath())) {
-                        addStage.delete(blob);
-                    }
-                    addStage.add(blob);
-                    addStage.saveAddStage();
-                } else {
-                    removeStage.delete(blob);
-                    removeStage.saveRemoveStage();
-                }
+        currentCommit = readCurCommit();
+        Stage stage = readStage();
+        Map<String, String> removeBlobs = stage.getRemoveBlobs();
+
+        //文件不在当前commit里, 或不在stage里
+        if(!currentCommit.getBlobHash().contains(blob.getFileHash())){
+            Map<String, String> addBlobs = stage.getAddBlobs();
+            if(!stage.fileExists(blob.getFileHash())){
+                //保存新的文件
+                blob.save();
             }
+
+            //删除旧的文件映射
+            addBlobs.remove(fileName);
+            addBlobs.put(fileName,  blob.getFileHash());
+
+            removeBlobs.remove(fileName);
+            writeStage(stage);
         }
     }
 
-    private static Stage readAddStage() {
-        if (!ADDSTAGE_FILE.exists()) {
-            return new Stage();
+    private static boolean userFileExists(String fileName){
+        return join(CWD, fileName).exists();
+    }
+
+    private static Stage readStage(){
+        return readObject(STAGE, Stage.class);
+    }
+
+    private static void writeStage(Stage stage){
+        writeObject(STAGE, stage);
+    }
+
+    private static Commit readCurCommit(){
+        String branch = readBranch();
+        String commitHash = readContentsAsString(join(HEADS_DIR, branch));
+        return readObject(join(COMMITS_DIR, commitHash), Commit.class);
+    }
+
+    private static Commit readCommit(String commitHash){
+        if(commitHash.length() == 40) {
+            return readObject(join(COMMITS_DIR, commitHash), Commit.class);
         }
-        return readObject(ADDSTAGE_FILE, Stage.class);
+        else {
+            List<String> commitsHashList = plainFilenamesIn(COMMITS_DIR);
+            String fullHash = commitsHashList.stream().filter(hash -> hash.startsWith(commitHash))
+                    .findFirst().get();
+            return readObject(join(COMMITS_DIR, fullHash), Commit.class);
+        }
     }
 
-    private static File getFileFromCWD(String file) {
-        return Paths.get(file).isAbsolute()
-                ? new File(file)
-                : join(CWD, file);
-    }
+    public static void commit(String message){
+        initCheck();
 
-    /* * commit command funtion */
-    public static void commit(String message) {
-        if (message.equals("")) {
+        if(message.isEmpty()){
             System.out.println("Please enter a commit message.");
             System.exit(0);
         }
-        Commit newCommit = newCommit(message);
-        saveNewCommit(newCommit);
-    }
 
-    private static Commit newCommit(String message) {
-        Map<String, String> addBlobMap = findAddBlobMap();
-        Map<String, String> removeBlobMap = findRemoveBlobMap();
-        checkIfNewCommit(addBlobMap, removeBlobMap);
-
-        currCommit = readCurrCommmit();
-        Map<String, String> blobMap = getBlobMapFromCurrCommit(currCommit);
-
-        blobMap = caculateBlobMap(blobMap, addBlobMap, removeBlobMap);
-        List<String> parents = findParents();
-        return new Commit(message, blobMap, parents);
-    }
-
-    private static void saveNewCommit(Commit newCommit) {
-        newCommit.save();
-        addStage.clear();
-        addStage.saveAddStage();
-        removeStage.clear();
-        removeStage.saveRemoveStage();
-        saveHeads(newCommit);
-    }
-
-    private static Map<String, String> findAddBlobMap() {
-        Map<String, String> addBlobMap = new HashMap<>();
-        addStage = readAddStage();
-        List<Blob> addBlobList = addStage.getBlobList();
-        for (Blob b : addBlobList) {
-            addBlobMap.put(b.getPath(), b.getBlobID());
-        }
-        return addBlobMap;
-    }
-
-    private static Map<String, String> findRemoveBlobMap() {
-        Map<String, String> removeBlobMap = new HashMap<>();
-        removeStage = readRemoveStage();
-        List<Blob> removeBlobList = removeStage.getBlobList();
-        for (Blob b : removeBlobList) {
-            removeBlobMap.put(b.getPath(), b.getBlobID());
-        }
-        return removeBlobMap;
-    }
-
-
-    private static void checkIfNewCommit(Map<String, String> addBlobMap,
-                                         Map<String, String> removeBlobMap) {
-        if (addBlobMap.isEmpty() && removeBlobMap.isEmpty()) {
+        Stage stage = readStage();
+        if(stage.getAddBlobs().isEmpty() && stage.getRemoveBlobs().isEmpty()){
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
+
+        currentCommit = readCurCommit();
+        //继承当前commit的blob, 合并stage
+        Map<String, String> commitBlobsMap = currentCommit.getBlobNameToHash();
+        commitBlobsMap.putAll(stage.getAddBlobs());
+        stage.getRemoveBlobs().values().forEach(commitBlobsMap::remove);
+
+        Commit commit = new Commit(message, List.of(currentCommit.getHash()), commitBlobsMap);
+        commit.save();
+
+        flushStage(stage);
+
+        updateRefHead(readBranch(), commit.getHash());
     }
 
-    private static Map<String, String> getBlobMapFromCurrCommit(Commit currCommit) {
-        return currCommit.getPathToBlobID();
+    private static void flushStage(Stage stage){
+        stage.getRemoveBlobs().clear();
+        stage.getAddBlobs().clear();
+        writeStage(stage);
     }
 
-    private static Map<String, String> caculateBlobMap(Map<String, String> blobMap,
-                                                       Map<String, String> addBlobMap,
-                                                       Map<String, String> removeBlobMap) {
-        if (!addBlobMap.isEmpty()) {
-            for (String path : addBlobMap.keySet()) {
-                blobMap.put(path, addBlobMap.get(path));
-            }
+    private static String readBranch(){
+        return readContentsAsString(HEAD);
+    }
+
+    public static void rm(String fileName){
+        initCheck();
+
+        //从stage删除
+        Stage stage = readStage();
+
+        boolean f = stage.getAddBlobs().remove(fileName) == null;
+
+        currentCommit = readCurCommit();
+        Map<String, String> blobNameToHash = currentCommit.getBlobNameToHash();
+        if(blobNameToHash.containsKey(fileName)){
+            join(CWD, fileName).delete();
+            stage.getRemoveBlobs().put(fileName, blobNameToHash.get(fileName));
+            blobNameToHash.remove(fileName);
         }
-        if (!removeBlobMap.isEmpty()) {
-            for (String path : removeBlobMap.keySet()) {
-                blobMap.remove(path);
-            }
-        }
-        return blobMap;
-    }
-
-    private static List<String> findParents() {
-        List<String> parents = new ArrayList<>();
-        currCommit = readCurrCommmit();
-        parents.add(currCommit.getID());
-        return parents;
-    }
-
-    private static Commit readCurrCommmit() {
-        String currCommmitID = readCurrCommmitID();
-        File CURR_COMMIT_FILE = join(OBJECT_DIR, currCommmitID);
-        return readObject(CURR_COMMIT_FILE, Commit.class);
-    }
-
-    private static String readCurrCommmitID() {
-        String currBranch = readCurrBranch();
-        File HEADS_FILE = join(HEADS_DIR, currBranch);
-        return readContentsAsString(HEADS_FILE);
-    }
-
-    private static void saveHeads(Commit newCommit) {
-        currCommit = newCommit;
-        String currBranch = readCurrBranch();
-        File HEADS_FILE = join(HEADS_DIR, currBranch);
-        writeContents(HEADS_FILE, currCommit.getID());
-    }
-
-    private static String readCurrBranch() {
-        return readContentsAsString(HEAD_FILE);
-    }
-
-    /* * rm command funtion */
-    public static void rm(String fileName) {
-        File file = getFileFromCWD(fileName);
-        String filePath = file.getPath();
-        addStage = readAddStage();
-        currCommit = readCurrCommmit();
-
-        if (addStage.exists(filePath)) {
-            addStage.delete(filePath);
-            addStage.saveAddStage();
-        } else if (currCommit.exists(filePath)) {
-            removeStage = readRemoveStage();
-            Blob removeBlob = getBlobFromCurrCommitByPath(filePath, currCommit);
-            removeStage.add(removeBlob);
-            removeStage.saveRemoveStage();
-            deleteFile(file);
-        } else {
+        //不在stage和commit里
+        else if(f){
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
+        writeStage(stage);
     }
 
-    private static Stage readRemoveStage() {
-        if (!REMOVESTAGE_FILE.exists()) {
-            return new Stage();
-        }
-        return readObject(REMOVESTAGE_FILE, Stage.class);
-    }
-
-    private static Blob getBlobFromCurrCommitByPath(String filePath, Commit currCommmit) {
-        String blobID = currCommmit.getPathToBlobID().get(filePath);
-        return getBlobByID(blobID);
-    }
-
-    /* * log command funtion */
-    public static void log() {
-        currCommit = readCurrCommmit();
-        while (!currCommit.getParentsCommitID().isEmpty()) {
-            if (isMergeCommit(currCommit)) {
-                printMergeCommit(currCommit);
-            } else {
-                printCommit(currCommit);
+    public static void log(){
+        initCheck();
+        currentCommit = readCurCommit();
+        while(currentCommit != null){
+            printCommit(currentCommit);
+            if(currentCommit.getParents() != null) {
+                currentCommit = readCommit(currentCommit.getParents().get(0));
             }
-            List<String> parentsCommitID = currCommit.getParentsCommitID();
-            currCommit = readCommitByID(parentsCommitID.get(0));
+            else break;
         }
-        printCommit(currCommit);
     }
 
-    private static boolean isMergeCommit(Commit currCommmit) {
-        return currCommmit.getParentsCommitID().size() == 2;
-    }
-
-    private static void printCommit(Commit currCommmit) {
+    private static void printCommit(Commit commit){
         System.out.println("===");
-        printCommitID(currCommmit);
-        printCommitDate(currCommmit);
-        printCommitMessage(currCommmit);
-    }
-
-    private static void printMergeCommit(Commit currCommmit) {
-        System.out.println("===");
-        printCommitID(currCommmit);
-        printMergeMark(currCommmit);
-        printCommitDate(currCommmit);
-        printCommitMessage(currCommmit);
-    }
-
-    private static void printCommitID(Commit currCommmit) {
-        System.out.println("commit " + currCommmit.getID());
-    }
-
-    private static void printMergeMark(Commit currCommmit) {
-        List<String> parentsCommitID = currCommmit.getParentsCommitID();
-        String parent1 = parentsCommitID.get(0);
-        String parent2 = parentsCommitID.get(1);
-        System.out.println("Merge: " + parent1.substring(0, 7) + " " + parent2.substring(0, 7));
-    }
-
-    private static void printCommitDate(Commit currCommmit) {
-        System.out.println("Date: " + currCommmit.getTimeStamp());
-    }
-
-    private static void printCommitMessage(Commit currCommmit) {
-        System.out.println(currCommmit.getMessage() + "\n");
-    }
-
-    private static Commit readCommitByID(String commitID) {
-        if (commitID.length() == 40) {
-            File CURR_COMMIT_FILE = join(OBJECT_DIR, commitID);
-            if (!CURR_COMMIT_FILE.exists()) {
-                return null;
-            }
-            return readObject(CURR_COMMIT_FILE, Commit.class);
-        } else {
-            List<String> objectID = plainFilenamesIn(OBJECT_DIR);
-            for (String o : objectID) {
-                if (commitID.equals(o.substring(0, commitID.length()))) {
-                    return readObject(join(OBJECT_DIR, o), Commit.class);
-                }
-            }
-            return null;
+        System.out.println("commit " + commit.getHash());
+        List<String> parents = commit.getParents();
+        if(parents != null && parents.size() > 1){
+            System.out.println("Merge: " + parents.get(0).substring(0, 7) + " " + parents.get(1).substring(0, 7));
         }
+        System.out.println("Date: " + commit.getTimestamp());
+        System.out.println(commit.getMessage());
+        System.out.println();
     }
 
-    /* * global-log command funtion */
-    public static void global_log() {
-        List<String> commitList = plainFilenamesIn(OBJECT_DIR);
-        Commit commit;
-        for (String id : commitList) {
-            try {
-                commit = readCommitByID(id);
-                if (isMergeCommit(commit)) {
-                    printMergeCommit(commit);
-                } else {
-                    printCommit(commit);
-                }
-            } catch (Exception ignore) {
+    public static void global_log(){
+        initCheck();
+        List<String> allCommits = plainFilenamesIn(COMMITS_DIR);
+
+        allCommits.stream().map(Repository::readCommit)
+                .forEach(Repository::printCommit);
+    }
+
+    public static void find(String findMessage){
+        initCheck();
+        List<String> allCommits = plainFilenamesIn(COMMITS_DIR);
+
+        List<String> hashList = allCommits.stream().map(Repository::readCommit)
+                .filter(commit -> commit.getMessage().equals(findMessage))
+                .map(Commit::getHash)
+                .collect(Collectors.toList());
+
+        if(!hashList.isEmpty()){
+            for(String hash : hashList){
+                System.out.println(hash);
             }
         }
-    }
-
-    /* * find command funtion */
-    public static void find(String findMessage) {
-        List<String> commitList = plainFilenamesIn(OBJECT_DIR);
-        List<String> idList = new ArrayList<String>();
-        Commit commit;
-        for (String id : commitList) {
-            try {
-                commit = readCommitByID(id);
-                if (findMessage.equals(commit.getMessage())) {
-                    idList.add(id);
-                }
-            } catch (Exception ignore) {
-            }
-        }
-        printID(idList);
-    }
-
-    private static void printID(List<String> idList) {
-        if (idList.isEmpty()) {
+        else {
             System.out.println("Found no commit with that message.");
-        } else {
-            for (String id : idList) {
-                System.out.println(id);
-            }
         }
     }
 
-    /* * status command funtion */
-    public static void status() {
-        printBranches();
-        printStagedFile();
-        printRemovedFiles();
-        printModifiedNotStagedFile();
-        printUntrackedFiles();
-    }
-
-    private static void printBranches() {
+    public static void status(){
+        initCheck();
         List<String> branchList = plainFilenamesIn(HEADS_DIR);
-        currBranch = readCurrBranch();
+        String curBranch = readBranch();
+
         System.out.println("=== Branches ===");
-        System.out.println("*" + currBranch);
-        if (branchList.size() > 1) {
-            for (String branch : branchList) {
-                if (!branch.equals(currBranch)) {
-                    System.out.println(branch);
-                }
-            }
-        }
-        System.out.println();
-    }
+        System.out.println("*" + curBranch);
 
-    private static void printStagedFile() {
+        branchList.stream().filter(branch -> !branch.equals(curBranch))
+                .forEach(System.out::println);
+        System.out.println();
+
         System.out.println("=== Staged Files ===");
-        addStage = readAddStage();
-        for (Blob b : addStage.getBlobList()) {
-            System.out.println(b.getFileName());
-        }
+        Stage stage = readStage();
+        stage.getAddBlobs().keySet().forEach(System.out::println);
         System.out.println();
-    }
 
-    private static void printRemovedFiles() {
         System.out.println("=== Removed Files ===");
-        removeStage = readRemoveStage();
-        for (Blob b : removeStage.getBlobList()) {
-            System.out.println(b.getFileName());
-        }
+        stage.getRemoveBlobs().keySet().forEach(System.out::println);
         System.out.println();
-    }
 
-    private static void printModifiedNotStagedFile() {
         System.out.println("=== Modifications Not Staged For Commit ===");
         System.out.println();
-    }
 
-    private static void printUntrackedFiles() {
         System.out.println("=== Untracked Files ===");
         System.out.println();
     }
 
-    /* * checkout command funtion */
-    /* * case 1 */
-    public static void checkout(String fileName) {
-        Commit currCommmit = readCurrCommmit();
-        List<String> fileNames = currCommmit.getFileNames();
-        if (fileNames.contains(fileName)) {
-            Blob blob = currCommmit.getBlobByFileName(fileName);
-            writeBlobToCWD(blob);
-        } else {
+    public static void checkout(String fileName){
+        initCheck();
+        currentCommit = readCurCommit();
+        String fileHash = currentCommit.getBlobNameToHash().get(fileName);
+        if(fileHash != null){
+            writeFile(fileHash);
+        }
+        else{
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
     }
 
-    private static void writeBlobToCWD(Blob blob) {
-        File fileName = join(CWD, blob.getFileName());
-        byte[] bytes = blob.getBytes();
-        writeContents(fileName, new String(bytes, StandardCharsets.UTF_8));
+    private static void writeFile(String fileHash){
+        Blob blob = readObject(join(BLOBS_DIR, fileHash),  Blob.class);
+        File file = join(CWD, blob.getFileName());
+        writeContents(file, blob.getFileContent());
     }
 
-    /* * case 2 */
-    public static void checkout(String commitID, String fileName) {
-        Commit commit = readCommitByID(commitID);
-        if (commit == null) {
+    public static void checkout(String commitHash, String fileName){
+        initCheck();
+        Commit commit = readCommit(commitHash);
+        if(commit == null){
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-        List<String> fileNames = commit.getFileNames();
-        if (fileNames.contains(fileName)) {
-            Blob blob = commit.getBlobByFileName(fileName);
-            writeBlobToCWD(blob);
-        } else {
+        String fileHash = commit.getBlobNameToHash().get(fileName);
+        if(fileHash == null){
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
+        writeFile(fileHash);
     }
 
-    /* * case 3 */
-    public static void checkoutBranch(String branchName) {
-        checkIfCheckedCurrBranch(branchName);
-        checkIfCheckedBranchExists(branchName);
-
-        currCommit = readCurrCommmit();
-        Commit newCommit = readCommitByBranchName(branchName);
-        changeCommitTo(newCommit);
-
-        changeBranchTo(branchName);
-    }
-
-    private static void checkIfCheckedBranchExists(String branchName) {
-        List<String> allBranch = readAllBranch();
-        if (!allBranch.contains(branchName)) {
+    public static void checkoutBranch(String branch){
+        initCheck();
+        //分支不存在
+        List<String> branchList = plainFilenamesIn(HEADS_DIR);
+        if(!branchList.contains(branch)){
             System.out.println("No such branch exists.");
             System.exit(0);
         }
-    }
-
-    private static void checkIfCheckedCurrBranch(String branchName) {
-        currBranch = readCurrBranch();
-        if (branchName.equals(currBranch)) {
+        //分支是当前分支
+        String curBranch = readBranch();
+        if(branch.equals(curBranch)){
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
+
+        String commitHash = readContentsAsString(join(HEADS_DIR, branch));
+        updateFileToCommit(commitHash);
+        //更新HEAD
+        writeContents(HEAD, branch);
+        //清空stage
+        clearStage();
     }
 
-    private static List<String> readAllBranch() {
-        return plainFilenamesIn(HEADS_DIR);
-    }
-
-    private static Commit readCommitByBranchName(String branchName) {
-        File branchFileName = join(HEADS_DIR, branchName);
-        String newCommitID = readContentsAsString(branchFileName);
-        return readCommitByID(newCommitID);
-    }
-
-    private static void changeCommitTo(Commit newCommit) {
-        List<String> onlyCurrCommitTracked = findOnlyCurrCommitTracked(newCommit);
-        List<String> bothCommitTracked = findBothCommitTracked(newCommit);
-        List<String> onlyNewCommitTracked = findOnlyNewCommitTracked(newCommit);
-        deleteFiles(onlyCurrCommitTracked);
-        overwriteFiles(bothCommitTracked, newCommit);
-        writeFiles(onlyNewCommitTracked, newCommit);
-        clearAllStage();
-    }
-
-    private static List<String> findOnlyCurrCommitTracked(Commit newCommit) {
-        List<String> newCommitFiles = newCommit.getFileNames();
-        List<String> onlyCurrCommitTracked = currCommit.getFileNames();
-        for (String s : newCommitFiles) {
-            onlyCurrCommitTracked.remove(s);
+    private static void updateFileToCommit(String commitHash){
+        //存在未跟踪的文件
+        currentCommit = readCurCommit();
+        Map<String, String> allTrackedFile = currentCommit.getBlobNameToHash();
+        List<String> allCurFiles = plainFilenamesIn(CWD);
+        if(allCurFiles.stream().anyMatch(i -> !allTrackedFile.containsKey(i))){
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.exit(0);
         }
-        return onlyCurrCommitTracked;
+        //删除多余文件
+        Commit branchCommit = readCommit(commitHash);
+        Map<String, String> allBranchFile = branchCommit.getBlobNameToHash();
+        allTrackedFile.keySet().stream()
+                .filter(i -> !allBranchFile.containsKey(i))
+                .forEach(i -> restrictedDelete(join(CWD, i)));
+        //替换文件
+        allBranchFile.values().stream()
+                .map(i -> readObject(join(BLOBS_DIR, i), Blob.class))
+                .forEach(i -> writeContents(join(CWD, i.getFileName()), i.getFileContent()));
+
     }
 
-    private static List<String> findBothCommitTracked(Commit newCommit) {
-        List<String> newCommitFiles = newCommit.getFileNames();
-        List<String> currCommitFiles = currCommit.getFileNames();
-        List<String> bothCommitTracked = new ArrayList<>();
-        for (String s : newCommitFiles) {
-            if (currCommitFiles.contains(s)) {
-                bothCommitTracked.add(s);
-            }
-        }
-        return bothCommitTracked;
+    private static void clearStage(){
+        Stage stage = readStage();
+        stage.getAddBlobs().clear();
+        stage.getRemoveBlobs().clear();
+        writeStage(stage);
     }
 
-    private static List<String> findOnlyNewCommitTracked(Commit newCommit) {
-        List<String> currCommitFiles = currCommit.getFileNames();
-        List<String> onlyNewCommitTracked = newCommit.getFileNames();
-        for (String s : currCommitFiles) {
-            onlyNewCommitTracked.remove(s);
-        }
-        return onlyNewCommitTracked;
+    public static void branch(String branch){
+        initCheck();
+        validateBranch(branch);
+
+        currentCommit = readCurCommit();
+        writeContents(join(HEADS_DIR, branch), currentCommit.getHash());
     }
 
-    private static void deleteFiles(List<String> onlyCurrCommitTracked) {
-        if (onlyCurrCommitTracked.isEmpty()) {
-            return;
-        }
-        for (String fileName : onlyCurrCommitTracked) {
-            File file = join(CWD, fileName);
-            restrictedDelete(file);
-        }
-    }
-
-    private static void overwriteFiles(List<String> bothCommitTracked, Commit newCommit) {
-        if (bothCommitTracked.isEmpty()) {
-            return;
-        }
-        for (String fileName : bothCommitTracked) {
-            Blob blob = newCommit.getBlobByFileName(fileName);
-            writeBlobToCWD(blob);
-        }
-    }
-
-    private static void writeFiles(List<String> onlyNewCommitTracked, Commit newCommit) {
-        if (onlyNewCommitTracked.isEmpty()) {
-            return;
-        }
-        for (String fileName : onlyNewCommitTracked) {
-            File file = join(CWD, fileName);
-            if (file.exists()) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-                System.exit(0);
-            }
-        }
-        overwriteFiles(onlyNewCommitTracked, newCommit);
-    }
-
-    private static void clearAllStage() {
-        addStage = readAddStage();
-        addStage.clear();
-        addStage.saveAddStage();
-        removeStage = readRemoveStage();
-        removeStage.clear();
-        removeStage.saveRemoveStage();
-    }
-
-    private static void changeBranchTo(String headName) {
-        writeContents(HEAD_FILE, headName);
-    }
-
-    /* * branch command funtion */
-    public static void branch(String branchName) {
-        checkIfNewBranch(branchName);
-        addNewBranchToHeads(branchName);
-    }
-
-    private static void checkIfNewBranch(String branchName) {
-        List<String> allBranches = plainFilenamesIn(HEADS_DIR);
-        if (allBranches.contains(branchName)) {
+    private static void validateBranch(String branch){
+        List<String> allBranch = plainFilenamesIn(HEADS_DIR);
+        if(allBranch.contains(branch)){
             System.out.println("A branch with that name already exists.");
             System.exit(0);
         }
     }
 
-    private static void addNewBranchToHeads(String branchName) {
-        File newBranchFile = join(HEADS_DIR, branchName);
-        currCommit = readCurrCommmit();
-        writeContents(newBranchFile, currCommit.getID());
-    }
-
-    /* * rm_branch command funtion */
-    public static void rm_branch(String branchName) {
-        checkIfCurrentBranch(branchName);
-        checkIfBranchExists(branchName);
-        removeBranch(branchName);
-    }
-
-    private static void checkIfCurrentBranch(String branchName) {
-        currBranch = readCurrBranch();
-        if (currBranch.equals(branchName)) {
-            System.out.println("Cannot remove the current branch.");
-            System.exit(0);
-        }
-    }
-
-    private static void checkIfBranchExists(String branchName) {
-        List<String> allBranch = readAllBranch();
-        if (!allBranch.contains(branchName)) {
+    public static void rm_branch(String branch){
+        initCheck();
+        List<String> allBranch = plainFilenamesIn(HEADS_DIR);
+        if(!allBranch.contains(branch)){
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
-    }
-
-    private static void removeBranch(String branchName) {
-        File fileName = join(HEADS_DIR, branchName);
-        if (!fileName.isDirectory()) {
-            fileName.delete();
+        String curBranch = readBranch();
+        if(curBranch.equals(branch)){
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
         }
+
+        File branchFile = (join(HEADS_DIR, branch));
+        if(!branchFile.isDirectory()) branchFile.delete();
     }
 
-    /* * reset command funtion */
-    public static void reset(String commitID) {
-        checkIfCommitIDExists(commitID);
-
-        currCommit = readCurrCommmit();
-        Commit newCommit = readCommitByID(commitID);
-        changeCommitTo(newCommit);
-
-        currBranch = readCurrBranch();
-        changeBranchHeadTo(commitID, currBranch);
-    }
-
-    private static void checkIfCommitIDExists(String commitID) {
-        Commit commit = readCommitByID(commitID);
-        if (commit == null) {
+    public static void reset(String commitHash){
+        initCheck();
+        List<String> allCommit = plainFilenamesIn(COMMITS_DIR);
+        if(!allCommit.contains(commitHash)){
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
+
+        updateFileToCommit(commitHash);
+        String curBranch = readBranch();
+        writeContents(join(HEADS_DIR, curBranch), commitHash);
+        clearStage();
     }
 
-    private static void changeBranchHeadTo(String commitID, String branchName) {
-        File branchFile = join(HEADS_DIR, branchName);
-        writeContents(branchFile, commitID);
-    }
+    /**
+     * @apiNote
+     * branch: 文件已修改    HEAD: 未修改 --> branch, stage
+     * branch: 未修改       HEAD: 已修改 --> HEAD
+     * branch: 已修改但内容一致或都已删除       HEAD:  --> HEAD
+     * split point: 没有文件 branch: 无      HEAD: 有文件 --> HEAD
+     * split point: 没有文件 branch: 有文件   HEAD: 无 --> branch, stage
+     * split point: 存在文件 branch: 删除 HEAD: 未修改 --> 删除, stage
+     * split point: 存在文件 branch: 未修改 HEAD: 删除 --> 删除
+     * branch: 修改不一致 HEAD: 修改 --> conflict
+     * branch: 修改或删除 HEAD: 删除或修改 --> conflict
+     * @param branch
+     */
+    public static void merge(String branch){
+        initCheck();
+        validateBranch(branch);
 
-    /* * merge command funtion */
-    public static void merge(String mergeBranch) {
-        currBranch = readCurrBranch();
-        checkIfStageEmpty();
-        checkIfBranchExists(mergeBranch);
-        checkIfMergeWithSelf(mergeBranch);
-
-        currCommit = readCurrCommmit();
-        Commit mergeCommit = readCommitByBranchName(mergeBranch);
-        Commit splitPoint = findSplitPoint(currCommit, mergeCommit);
-        checkIfSplitPintIsGivenBranch(splitPoint, mergeCommit);
-        checkIfSplitPintIsCurrBranch(splitPoint, mergeBranch);
-        Map<String, String> currCommitBlobs = currCommit.getPathToBlobID();
-
-        String message = "Merged " + mergeBranch + " into " + currBranch + ".";
-        String currBranchCommitID = readCommitByBranchName(currBranch).getID();
-        String mergeBranchCommitID = readCommitByBranchName(mergeBranch).getID();
-        List<String> parents = new ArrayList<>(List.of(currBranchCommitID, mergeBranchCommitID));
-        Commit newCommit = new Commit(message, currCommitBlobs, parents);
-
-        Commit mergedCommit = mergeFilesToNewCommit(splitPoint, newCommit, mergeCommit);
-        saveNewCommit(mergedCommit);
-    }
-
-    private static void checkIfStageEmpty() {
-        addStage = readAddStage();
-        removeStage = readRemoveStage();
-        if (!(addStage.isEmpty() && removeStage.isEmpty())) {
+        Stage stage = readStage();
+        if(stage.getAddBlobs().isEmpty() || stage.getRemoveBlobs().isEmpty()) ;
+        else {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
-    }
 
-    private static void checkIfMergeWithSelf(String branchName) {
-        if (currBranch.equals(branchName)) {
+        String curBranch = readBranch();
+        if(curBranch.equals(branch)){
             System.out.println("Cannot merge a branch with itself.");
             System.exit(0);
         }
-    }
 
-    private static Commit findSplitPoint(Commit commit1, Commit commit2) {
-        Map<String, Integer> commit1IDToLength = caculateCommitMap(commit1, 0);
-        Map<String, Integer> commit2IDToLength = caculateCommitMap(commit2, 0);
-        return caculateSplitPoint(commit1IDToLength, commit2IDToLength);
-    }
-
-    private static Map<String, Integer> caculateCommitMap(Commit commit, int length) {
-        Map<String, Integer> map = new HashMap<>();
-        if (commit.getParentsCommitID().isEmpty()) {
-            map.put(commit.getID(), length);
-            return map;
-        }
-        map.put(commit.getID(), length);
-        length++;
-        for (String id : commit.getParentsCommitID()) {
-            Commit parent = readCommitByID(id);
-            map.putAll(caculateCommitMap(parent, length));
-        }
-        return map;
-    }
-
-    private static Commit caculateSplitPoint(Map<String, Integer> map1, Map<String, Integer> map2) {
-        int minLength = Integer.MAX_VALUE;
-        String minID = "";
-        for (String id : map1.keySet()) {
-            if (map2.containsKey(id) && map2.get(id) < minLength) {
-                minID = id;
-                minLength = map2.get(id);
-            }
-        }
-        return readCommitByID(minID);
-    }
-
-    private static void checkIfSplitPintIsGivenBranch(Commit splitPoint, Commit mergeCommit) {
-        if (splitPoint.getID().equals(mergeCommit.getID())) {
+        currentCommit = readCurCommit();
+        String branchCommitHash = readContentsAsString(join(HEADS_DIR, branch));
+        Commit branchCommit = readCommit(branchCommitHash);
+        String splitPointHash = findSplitPoint(currentCommit, branchCommit);
+        if(splitPointHash.equals(branchCommitHash)){
             System.out.println("Given branch is an ancestor of the current branch.");
             System.exit(0);
         }
-    }
 
-    private static void checkIfSplitPintIsCurrBranch(Commit splitPoint, String mergeBranch) {
-        if (splitPoint.getID().equals(currCommit.getID())) {
+        String curCommitHash = currentCommit.getHash();
+        if(splitPointHash.equals(curCommitHash)){
+            checkoutBranch(branch);
             System.out.println("Current branch fast-forwarded.");
-            checkoutBranch(mergeBranch);
-        }
-    }
-
-    private static Commit mergeFilesToNewCommit(Commit splitPoint, Commit newCommit, Commit mergeCommit) {
-
-        List<String> allFiles = caculateAllFiles(splitPoint, newCommit, mergeCommit);
-
-        /*
-         * case 1 5 6: write mergeCommit files into newCommit
-         * case 1: overwrite files
-         * case 5: write files
-         * case 6: delete files
-         */
-        List<String> overwriteFiles = caculateOverwriteFiles(allFiles, splitPoint, newCommit, mergeCommit);
-        List<String> writeFiles = caculateWriteFiles(allFiles, splitPoint, newCommit, mergeCommit);
-        List<String> deleteFiles = caculateDeleteFiles(allFiles, splitPoint, newCommit, mergeCommit);
-
-        overwriteFiles(changeBlobIDListToFileNameList(overwriteFiles), mergeCommit);
-        writeFiles(changeBlobIDListToFileNameList(writeFiles), mergeCommit);
-        deleteFiles(changeBlobIDListToFileNameList(deleteFiles));
-
-        /* * case 3-1: deal conflict */
-        checkIfConflict(allFiles, splitPoint, newCommit, mergeCommit);
-
-        /* * case 2 4 7 3-1: do nothing */
-        //nothing to do here
-
-        return caculateMergedCommit(newCommit, overwriteFiles, writeFiles, deleteFiles);
-    }
-
-    private static List<String> caculateAllFiles(Commit splitPoint, Commit newCommit, Commit mergeCommit) {
-        List<String> allFiles = new ArrayList<String>(splitPoint.getBlobIDList());
-        allFiles.addAll(newCommit.getBlobIDList());
-        allFiles.addAll(mergeCommit.getBlobIDList());
-        Set<String> set = new HashSet<String>(allFiles);
-        allFiles.clear();
-        allFiles.addAll(set);
-        return allFiles;
-    }
-
-    private static void checkIfConflict(List<String> allFiles, Commit splitPoint, Commit newCommit, Commit mergeCommit) {
-        Map<String, String> splitPointMap = splitPoint.getPathToBlobID();
-        Map<String, String> newCommitMap = newCommit.getPathToBlobID();
-        Map<String, String> mergeCommitMap = mergeCommit.getPathToBlobID();
-
-        boolean conflict = false;
-        for (String blobID : allFiles) {
-            String path = getBlobByID(blobID).getPath();
-            int commonPath = 0;
-            if (splitPointMap.containsKey(path)) {
-                commonPath += 1;
-            }
-            if (newCommitMap.containsKey(path)) {
-                commonPath += 2;
-            }
-            if (mergeCommitMap.containsKey(path)) {
-                commonPath += 4;
-            }
-            if ((commonPath == 3 && (!splitPointMap.get(path).equals(newCommitMap.get(path)))) ||
-                    (commonPath == 5 && (!splitPointMap.get(path).equals(mergeCommitMap.get(path)))) ||
-                    (commonPath == 6 && (!newCommitMap.get(path).equals(mergeCommitMap.get(path)))) ||
-                    (commonPath == 7 &&
-                            (!splitPointMap.get(path).equals(newCommitMap.get(path))) &&
-                            (!splitPointMap.get(path).equals(mergeCommitMap.get(path))) &&
-                            (!newCommitMap.get(path).equals(mergeCommitMap.get(path))))) {
-
-                conflict = true;
-                String currBranchContents = "";
-                if (newCommitMap.containsKey(path)) {
-                    Blob newCommitBlob = getBlobByID(newCommitMap.get(path));
-                    currBranchContents = new String(newCommitBlob.getBytes(), StandardCharsets.UTF_8);
-                }
-
-                String givenBranchContents = "";
-                if (mergeCommitMap.containsKey(path)) {
-                    Blob mergeCommitBlob = getBlobByID(mergeCommitMap.get(path));
-                    givenBranchContents = new String(mergeCommitBlob.getBytes(), StandardCharsets.UTF_8);
-                }
-
-                String conflictContents = "<<<<<<< HEAD\n" + currBranchContents + "=======\n" + givenBranchContents + ">>>>>>>\n";
-                String fileName = getBlobByID(blobID).getFileName();
-                File conflictFile = join(CWD, fileName);
-                writeContents(conflictFile, conflictContents);
-            }
-
         }
 
-        if (conflict) {
+        List<String> curAdd = new ArrayList<>();
+        List<String> curDelete = new ArrayList<>();
+        List<String> curModify = new ArrayList<>();
+        List<String> curUnModify = new ArrayList<>();
+
+        List<String> branchAdd = new ArrayList<>();
+        List<String> branchDelete = new ArrayList<>();
+        List<String> branchModify = new ArrayList<>();
+        List<String> branchUnModify = new ArrayList<>();
+
+        Commit splitCommit = readCommit(splitPointHash);
+        findDiffFromCommits(splitCommit, currentCommit, curModify, curUnModify, curAdd, curDelete);
+        findDiffFromCommits(splitCommit, branchCommit, branchModify, branchUnModify, branchAdd, branchDelete);
+
+        Map<String, String> curBlobMap = currentCommit.getBlobNameToHash();
+        Map<String, String> branchBlobMap = branchCommit.getBlobNameToHash();
+        //branch: 文件已修改    HEAD: 未修改 --> branch, stage
+        branchModify.stream().filter(curUnModify::contains)
+                .forEach(i -> {
+                    String hash = branchBlobMap.get(i);
+                    writeFileFromBlob(i, hash);
+                    stage.getAddBlobs().put(i, hash);
+                });
+        //split point: 没有文件 branch: 有文件   HEAD: 无 --> branch, stage
+        branchAdd.stream().filter(i -> !curAdd.contains(i))
+                .forEach(i -> {
+                    String hash = branchBlobMap.get(i);
+                    writeFileFromBlob(i, hash);
+                    stage.getAddBlobs().put(i, hash);
+                });
+        //split point: 存在文件 branch: 删除 HEAD: 未修改 --> 删除, stage
+        branchDelete.stream().filter(i -> !curUnModify.contains(i))
+                .forEach(i -> {
+                    restrictedDelete(join(CWD, i));
+                    stage.getRemoveBlobs().put(i, curBlobMap.get(i));
+                });
+        //branch: 修改不一致 HEAD: 修改 --> conflict
+        //branch: 修改或删除 HEAD: 删除或修改 --> conflict
+        List<String> conflictFiles = new ArrayList<>();
+        for(var fileName : branchModify){
+            if(curModify.contains(fileName) &&
+                    !curBlobMap.get(fileName).equals(branchBlobMap.get(fileName))){
+                conflictFiles.add(fileName);
+            }
+
+            if(curDelete.contains(fileName)) conflictFiles.add(fileName);
+        }
+
+        for(var fileName : curModify){
+            if(branchDelete.contains(fileName)) conflictFiles.add(fileName);
+        }
+        if(!conflictFiles.isEmpty()) {
             System.out.println("Encountered a merge conflict.");
+            for (var fileName : conflictFiles) {
+                StringBuilder content = new StringBuilder("<<<<<<< HEAD\n");
+                content.append(curBlobMap.getOrDefault(fileName, ""));
+                content.append("=======\n");
+                content.append(branchBlobMap.getOrDefault(fileName, ""));
+                content.append(">>>>>>>\n");
+                writeContents(join(CWD, fileName), content.toString());
+            }
+            String mergeMessage = String.format("Merged %s into %s.", branch, curBranch);
+            curBlobMap.putAll(stage.getAddBlobs());
+            stage.getRemoveBlobs().keySet().forEach(curBlobMap::remove);
+            clearStage();
+            Commit mergeCommit = new Commit(mergeMessage, List.of(curCommitHash, branchCommitHash), curBlobMap);
+            mergeCommit.save();
         }
     }
 
+    private static String findSplitPoint(Commit curCommit, Commit givenCommit){
+        Commit commit1 = curCommit, commit2 = givenCommit;
+        String commitHash1 = commit1.getHash(), commitHash2 = commit2.getHash();
+        Set<String> set1 = new HashSet<>();
+        Set<String> set2 = new HashSet<>();
+        set1.add(commitHash1);
+        set2.add(commitHash2);
 
-    private static List<String> caculateOverwriteFiles(List<String> allFiles, Commit splitPoint, Commit
-            newCommit, Commit mergeCommit) {
-        Map<String, String> splitPointMap = splitPoint.getPathToBlobID();
-        Map<String, String> newCommitMap = newCommit.getPathToBlobID();
-        Map<String, String> mergeCommitMap = mergeCommit.getPathToBlobID();
-        List<String> overwriteFiles = new ArrayList<>();
-        for (String path : splitPointMap.keySet()) {
-            if (newCommitMap.containsKey(path) && mergeCommitMap.containsKey(path)) {
-                if ((splitPointMap.get(path).equals(newCommitMap.get(path))) && (!splitPointMap.get(path).equals(mergeCommitMap.get(path)))) {
-                    overwriteFiles.add(mergeCommitMap.get(path));
+        Deque<String> commitDeque1 = new ArrayDeque<>();
+        Deque<String> commitDeque2 = new ArrayDeque<>();
+        if(commit1.getParents() != null){
+            commitDeque1.addAll(commit1.getParents());
+        }
+        if(commit2.getParents() != null){
+            commitDeque2.addAll(commit2.getParents());
+        }
+
+        while(!commitDeque1.isEmpty() || !commitDeque2.isEmpty()){
+            if(!commitDeque1.isEmpty()){
+                commitHash1 = commitDeque1.pop();
+                if(set2.contains(commitHash1)){
+                    return commitHash1;
+                }
+
+                set1.add(commitHash1);
+                commit1 = readCommit(commitHash1);
+                if(commit1.getParents() != null){
+                    commitDeque1.addAll(commit1.getParents());
+                }
+            }
+
+            if(!commitDeque2.isEmpty()){
+                commitHash2 = commitDeque2.pop();
+                if(set1.contains(commitHash2)){
+                    return commitHash2;
+                }
+
+                set2.add(commitHash2);
+                commit2 = readCommit(commitHash2);
+                if(commit2.getParents() != null){
+                    commitDeque2.addAll(commit2.getParents());
                 }
             }
         }
-        return overwriteFiles;
+        return null;
     }
 
+    private static void findDiffFromCommits(Commit commit1, Commit commit2,
+                                            List<String> modifyFile, List<String> unModifyFile, List<String> addFile, List<String> deleteFile){
 
-    private static List<String> caculateWriteFiles(List<String> allFiles, Commit splitPoint, Commit
-            newCommit, Commit mergeCommit) {
-        Map<String, String> splitPointMap = splitPoint.getPathToBlobID();
-        Map<String, String> newCommitMap = newCommit.getPathToBlobID();
-        Map<String, String> mergeCommitMap = mergeCommit.getPathToBlobID();
-        List<String> writeFiles = new ArrayList<>();
-        for (String path : mergeCommitMap.keySet()) {
-            if ((!splitPointMap.containsKey(path)) && (!newCommitMap.containsKey(path))) {
-                writeFiles.add(mergeCommitMap.get(path));
+        Map<String, String> commit1Files = commit1.getBlobNameToHash();
+        Map<String, String> commit2Files = commit2.getBlobNameToHash();
+
+        for(var s : commit1Files.keySet()){
+            //同时存在, 比较内容
+            if(commit2Files.containsKey(s)){
+                if(commit1Files.get(s).equals(commit2Files.get(s))){
+                    unModifyFile.add(s);
+                }
+                else modifyFile.add(s);
             }
+            else deleteFile.add(s);
         }
-        return writeFiles;
+        //增加的文件
+        commit2Files.keySet().stream().filter(i -> !commit1Files.containsKey(i))
+                .forEach(addFile::add);
+
     }
 
-    private static List<String> caculateDeleteFiles(List<String> allFiles, Commit splitPoint, Commit
-            newCommit, Commit mergeCommit) {
-        Map<String, String> splitPointMap = splitPoint.getPathToBlobID();
-        Map<String, String> newCommitMap = newCommit.getPathToBlobID();
-        Map<String, String> mergeCommitMap = mergeCommit.getPathToBlobID();
-        List<String> deleteFiles = new ArrayList<>();
-        for (String path : splitPointMap.keySet()) {
-            if (newCommitMap.containsKey(path) && (!mergeCommitMap.containsKey(path))) {
-                deleteFiles.add(newCommitMap.get(path));
-            }
-        }
-        return deleteFiles;
-    }
-
-    private static List<String> changeBlobIDListToFileNameList(List<String> blobIDList) {
-        List<String> fileNameList = new ArrayList<>();
-        Blob b;
-        for (String id : blobIDList) {
-            b = getBlobByID(id);
-            fileNameList.add(b.getFileName());
-        }
-        return fileNameList;
-    }
-
-    private static Commit caculateMergedCommit(Commit newCommit, List<String> overwriteFiles, List<String> writeFiles, List<String> deleteFiles) {
-        Map<String, String> mergedCommitBlobs = newCommit.getPathToBlobID();
-        if (!overwriteFiles.isEmpty()) {
-            for (String blobID : overwriteFiles) {
-                Blob b = getBlobByID(blobID);
-                mergedCommitBlobs.put(b.getPath(), blobID);
-            }
-        }
-        if (!writeFiles.isEmpty()) {
-            for (String blobID : writeFiles) {
-                Blob b = getBlobByID(blobID);
-                mergedCommitBlobs.put(b.getPath(), blobID);
-            }
-        }
-        if (!deleteFiles.isEmpty()) {
-            for (String blobID : overwriteFiles) {
-                Blob b = getBlobByID(blobID);
-                mergedCommitBlobs.remove(b.getPath());
-            }
-        }
-        return new Commit(newCommit.getMessage(), mergedCommitBlobs, newCommit.getParentsCommitID());
+    private static void writeFileFromBlob(String fileName, String blobHash){
+        String newContent = readContentsAsString(join(BLOBS_DIR, blobHash));
+        writeContents(join(CWD, fileName), newContent);
     }
 }

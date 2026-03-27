@@ -2,66 +2,37 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-
-import static gitlet.Repository.OBJECT_DIR;
 import static gitlet.Utils.*;
 
 public class Blob implements Serializable {
 
-    private String id;
+    private String fileHash;
 
-    private byte[] bytes;
+    private String fileContent;
 
-    private File fileName;
+    private String fileName;
 
-    private String filePath;
+    private File file;
 
-    private File blobSaveFileName;
-
-
-    public Blob(File fileName) {
+    public Blob(String fileName){
         this.fileName = fileName;
-        this.bytes = readFile();
-        this.filePath = fileName.getPath();
-        this.id = generateID();
-        this.blobSaveFileName = generateBlobSaveFileName();
+        this.fileContent = readContentsAsString(new File(fileName));
+
+        this.fileHash = sha1(fileName, fileContent);
+        this.file = join(Repository.BLOBS_DIR, fileHash);
     }
 
-    public String getBlobID() {
-        return id;
+    public String getFileContent(){
+        return fileContent;
     }
 
-    public byte[] getBytes() {
-        return bytes;
+    public void save(){
+        writeObject(file, this);
     }
 
-    public String getPath() {
-        return filePath;
+    public String getFileHash(){return  fileHash;}
+
+    public String getFileName() {
+        return fileName;
     }
-
-    public File getBlobSaveFileName() {
-        return blobSaveFileName;
-    }
-
-    public String getFileName(){
-        return fileName.getName();
-    }
-
-    private byte[] readFile() {
-        return readContents(fileName);
-    }
-
-    private String generateID() {
-        return sha1(filePath, bytes);
-    }
-
-
-    private File generateBlobSaveFileName() {
-        return join(OBJECT_DIR, id);
-    }
-
-    public void save() {
-        writeObject(blobSaveFileName, this);
-    }
-
 }
