@@ -5,7 +5,6 @@ import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static gitlet.Utils.*;
 
@@ -41,14 +40,14 @@ public class Commit implements Serializable {
         return dateFormat.format(date);
     }
 
-    public Commit(){
+    public Commit() {
         this.message = INITMESSAGE;
         this.timestamp = dateToTimeStamp(new Date(0));
         this.hash = sha1Hash();
         this.blobNameToHash = new HashMap<>();
     }
 
-    public Commit(String message, List<String> parents, Map<String, String> blobNameToHash){
+    public Commit(String message, List<String> parents, Map<String, String> blobNameToHash) {
         this.message = message;
         this.timestamp = dateToTimeStamp(new Date());
         this.hash = sha1Hash();
@@ -56,11 +55,11 @@ public class Commit implements Serializable {
         this.parents = parents;
     }
 
-    private String sha1Hash(){
+    private String sha1Hash() {
         return sha1(message, timestamp);
     }
 
-    public void save(){
+    public void save() {
         File commit = join(PATH, hash);
         Utils.writeObject(commit, this);
     }
@@ -73,8 +72,8 @@ public class Commit implements Serializable {
         return blobNameToHash;
     }
 
-    public List<String> getBlobHash(){
-        return new ArrayList<>(blobNameToHash.values());
+    public Set<String> getBlobHash() {
+        return new HashSet<>(blobNameToHash.values());
     }
 
     public List<String> getParents() {

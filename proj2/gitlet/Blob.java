@@ -14,7 +14,7 @@ public class Blob implements Serializable {
 
     private File file;
 
-    public Blob(String fileName){
+    public Blob(String fileName) {
         this.fileName = fileName;
         this.fileContent = readContentsAsString(new File(fileName));
 
@@ -22,15 +22,17 @@ public class Blob implements Serializable {
         this.file = join(Repository.BLOBS_DIR, fileHash);
     }
 
-    public String getFileContent(){
+    public String getFileContent() {
         return fileContent;
     }
 
-    public void save(){
+    public void save() {
         writeObject(file, this);
     }
 
-    public String getFileHash(){return  fileHash;}
+    public String getFileHash() {
+        return fileHash;
+    }
 
     public String getFileName() {
         return fileName;

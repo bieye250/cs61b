@@ -37,7 +37,7 @@ public class Main {
                 break;
             case "global-log":
                 validateArgLen(args, 1);
-                Repository.global_log();
+                Repository.globalLog();
                 break;
             case "find":
                 validateArgLen(args, 2);
@@ -71,7 +71,7 @@ public class Main {
                 break;
             case "rm-branch":
                 validateArgLen(args, 2);
-                Repository.rm_branch(args[1]);
+                Repository.rmBranch(args[1]);
                 break;
             case "reset":
                 validateArgLen(args, 2);
