@@ -623,6 +623,10 @@ public class Repository {
             }
             content.append(">>>>>>>\n");
             writeContents(join(CWD, fileName), content.toString());
+            //写入blob, 并更新map
+            Blob conflictBlob = new Blob(fileName);
+            curBlobMap.put(fileName, conflictBlob.getFileHash());
+            conflictBlob.save();
         }
     }
 
