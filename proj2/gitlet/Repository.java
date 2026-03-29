@@ -277,7 +277,7 @@ public class Repository {
 
         currentCommit = readCurCommit();
         System.out.println("=== Modifications Not Staged For Commit ===");
-        List<String> notInStageFile = listNotStageForCommit(stage);
+        List<String> notInStageFile = listNotStageForCommit(currentCommit, stage);
         System.out.println();
 
         System.out.println("=== Untracked Files ===");
@@ -292,24 +292,36 @@ public class Repository {
     }
 
 
-    private static List<String> listNotStageForCommit(Stage stage) {
+    private static List<String> listNotStageForCommit(Commit commit, Stage stage) {
         List<String> allFiles = plainFilenamesIn(CWD);
         Map<String, String> addMap = stage.getAddBlobs();
+        Map<String, String> commitBlob = commit.getBlobNameToHash();
         //不在stage中, 用于下一步筛出没有被版本控制的文件
         List<String> notInStageFile = new ArrayList<>();
         for (var file : allFiles) {
             Blob blob = new Blob(file);
-            if (addMap.containsKey(file)) {
-                if (!blob.getFileHash().equals(addMap.get(file))) {
+            String fileHash = blob.getFileHash();
+
+            boolean stageContain = addMap.containsKey(file);
+            boolean commitContain = commitBlob.containsKey(file);
+            if (commitContain && !stageContain && !fileHash.equals(commitBlob.get(file))) {
+                System.out.println(file + " (modified)");
+                continue;
+            }
+            if (stageContain) {
+                if (!fileHash.equals(addMap.get(file))) {
                     System.out.println(file + " (modified)");
                 }
-                addMap.remove(file);
             } else {
                 notInStageFile.add(file);
             }
         }
-        if (!addMap.isEmpty()) {
-            for (var file : addMap.keySet()) {
+
+        Set<String> fileSet = new HashSet<>(commitBlob.keySet());
+        fileSet.addAll(addMap.keySet());
+        fileSet.removeAll(allFiles);
+        if (!fileSet.isEmpty()) {
+            for (var file : fileSet) {
                 System.out.println(file + " (deleted)");
             }
         }
@@ -590,7 +602,8 @@ public class Repository {
     }
 
     private static void generateConflictContent(List<String> conflictFiles,
-                                                Map<String, String> curBlobMap, Map<String, String> branchBlobMap) {
+                                                Map<String, String> curBlobMap,
+                                                Map<String, String> branchBlobMap) {
         Blob blob;
         System.out.println("Encountered a merge conflict.");
         String curBlobHash, branchBlobHash;
