@@ -296,6 +296,7 @@ public class Repository {
         List<String> allFiles = plainFilenamesIn(CWD);
         Map<String, String> addMap = stage.getAddBlobs();
         Map<String, String> commitBlob = commit.getBlobNameToHash();
+        stage.getRemoveBlobs().keySet().forEach(commitBlob::remove);
         //不在stage中, 用于下一步筛出没有被版本控制的文件
         List<String> notInStageFile = new ArrayList<>();
         for (var file : allFiles) {
