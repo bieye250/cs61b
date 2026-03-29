@@ -133,8 +133,7 @@ public class Repository {
             if (commit.exists()) {
                 return readObject(commit, Commit.class);
             }
-        }
-        else {
+        } else {
             List<String> commitsHashList = plainFilenamesIn(COMMITS_DIR);
             String fullHash = commitsHashList.stream().filter(hash -> hash.startsWith(commitHash))
                     .findFirst().orElse(null);
@@ -395,7 +394,7 @@ public class Repository {
                 System.out.println("A branch with that name already exists.");
                 System.exit(0);
             }
-        } else if(flag == 2) {
+        } else if (flag == 2) {
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
@@ -428,7 +427,7 @@ public class Repository {
 
         updateFileToCommit(fullHash);
         String curBranch = readBranch();
-        writeContents(join(HEADS_DIR, curBranch), commitHash);
+        writeContents(join(HEADS_DIR, curBranch), fullHash);
         clearStage();
     }
 
@@ -526,8 +525,10 @@ public class Repository {
             }
         }
 
-        for(var fileName : curModify.keySet()) {
-            if (branchDelete.containsKey(fileName)) conflictFiles.add(fileName);
+        for (var fileName : curModify.keySet()) {
+            if (branchDelete.containsKey(fileName)) {
+                conflictFiles.add(fileName);
+            }
         }
         if (!conflictFiles.isEmpty()) {
             Blob blob;
@@ -540,13 +541,13 @@ public class Repository {
                     blob = readObject(join(BLOBS_DIR, curBlobHash), Blob.class);
                     content.append(blob.getFileContent());
                 }
-                content.append("\n=======\n");
+                content.append("=======\n");
                 branchBlobHash = branchBlobMap.get(fileName);
                 if (branchBlobHash != null) {
                     blob = readObject(join(BLOBS_DIR, branchBlobHash), Blob.class);
                     content.append(blob.getFileContent());
                 }
-                content.append("\n>>>>>>>\n");
+                content.append(">>>>>>>\n");
                 writeContents(join(CWD, fileName), content.toString());
             }
         }
@@ -609,8 +610,10 @@ public class Repository {
     }
 
     private static void findDiffFromCommits(Commit commit1, Commit commit2,
-                                            Map<String, String> modifyFile, Map<String, String> unModifyFile,
-                                            Map<String, String> addFile, Map<String, String> deleteFile) {
+                                            Map<String, String> modifyFile,
+                                            Map<String, String> unModifyFile,
+                                            Map<String, String> addFile,
+                                            Map<String, String> deleteFile) {
 
         Map<String, String> commit1Files = commit1.getBlobNameToHash();
         Map<String, String> commit2Files = commit2.getBlobNameToHash();
@@ -620,8 +623,12 @@ public class Repository {
             if (commit2Files.containsKey(s)) {
                 if (commit1Files.get(s).equals(commit2Files.get(s))) {
                     unModifyFile.put(s, commit1Files.get(s));
-                } else modifyFile.put(s, commit1Files.get(s));
-            } else deleteFile.put(s, commit1Files.get(s));
+                } else {
+                    modifyFile.put(s, commit1Files.get(s));
+                }
+            } else {
+                deleteFile.put(s, commit1Files.get(s));
+            }
         }
         //增加的文件
         commit2Files.keySet().stream().filter(i -> !commit1Files.containsKey(i))
