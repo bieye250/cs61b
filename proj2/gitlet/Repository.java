@@ -481,7 +481,6 @@ public class Repository {
     public static void merge(String branch) {
         initCheck();
         validateBranch(branch, 2);
-
         Stage stage = readStage();
         validateStageEmpty(stage);
 
@@ -535,12 +534,9 @@ public class Repository {
         //branch: 修改或删除 HEAD: 删除或修改 --> conflict
         List<String> conflictFiles = new ArrayList<>();
         for (var fileName : branchModify.keySet()) {
-            if (curModify.containsKey(fileName)
-                   && !curBlobMap.get(fileName).equals(branchBlobMap.get(fileName))) {
-                conflictFiles.add(fileName);
-            }
-
-            if (curDelete.containsKey(fileName)) {
+            if ((curModify.containsKey(fileName)
+                   && !curBlobMap.get(fileName).equals(branchBlobMap.get(fileName)))
+                    || curDelete.containsKey(fileName)) {
                 conflictFiles.add(fileName);
             }
         }
@@ -561,7 +557,6 @@ public class Repository {
                 List.of(curCommitHash, branchCommitHash), curBlobMap);
         mergeCommit.save();
         writeContents(join(HEADS_DIR, curBranch), mergeCommit.getHash());
-
     }
 
     private static void addOrDeleteFile(Map<String, String> branchModify,
@@ -594,7 +589,8 @@ public class Repository {
                 });
     }
 
-    private static void generateConflictContent(List<String> conflictFiles, Map<String, String> curBlobMap, Map<String, String> branchBlobMap) {
+    private static void generateConflictContent(List<String> conflictFiles,
+                                                Map<String, String> curBlobMap, Map<String, String> branchBlobMap) {
         Blob blob;
         System.out.println("Encountered a merge conflict.");
         String curBlobHash, branchBlobHash;
