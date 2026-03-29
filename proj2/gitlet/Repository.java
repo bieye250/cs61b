@@ -243,16 +243,13 @@ public class Repository {
         initCheck();
         List<String> allCommits = plainFilenamesIn(COMMITS_DIR);
 
-        List<String> hashList = allCommits.stream().map(Repository::readCommit)
+        long cnt = allCommits.stream().map(Repository::readCommit)
                 .filter(commit -> commit.getMessage().equals(findMessage))
                 .map(Commit::getHash)
-                .collect(Collectors.toList());
+                .peek(System.out::println)
+                .count();
 
-        if (!hashList.isEmpty()) {
-            for (String hash : hashList) {
-                System.out.println(hash);
-            }
-        } else {
+        if (cnt == 0) {
             System.out.println("Found no commit with that message.");
         }
     }
@@ -278,11 +275,45 @@ public class Repository {
         stage.getRemoveBlobs().keySet().forEach(System.out::println);
         System.out.println();
 
+        currentCommit = readCurCommit();
         System.out.println("=== Modifications Not Staged For Commit ===");
+        List<String> notInStageFile = listNotStageForCommit(stage);
         System.out.println();
 
         System.out.println("=== Untracked Files ===");
+        listUntrackedFile(currentCommit, notInStageFile);
         System.out.println();
+    }
+
+    private static void listUntrackedFile(Commit commit, List<String> notInStageFile) {
+        Map<String, String> trackedFile = commit.getBlobNameToHash();
+        notInStageFile.stream().filter(i -> !trackedFile.containsKey(i))
+                .forEach(System.out::println);
+    }
+
+
+    private static List<String> listNotStageForCommit(Stage stage) {
+        List<String> allFiles = plainFilenamesIn(CWD);
+        Map<String, String> addMap = stage.getAddBlobs();
+        //不在stage中, 用于下一步筛出没有被版本控制的文件
+        List<String> notInStageFile = new ArrayList<>();
+        for (var file : allFiles) {
+            Blob blob = new Blob(file);
+            if (addMap.containsKey(file)) {
+                if (!blob.getFileHash().equals(addMap.get(file))) {
+                    System.out.println(file + " (modified)");
+                }
+                addMap.remove(file);
+            } else {
+                notInStageFile.add(file);
+            }
+        }
+        if (!addMap.isEmpty()) {
+            for (var file : addMap.keySet()) {
+                System.out.println(file + " (deleted)");
+            }
+        }
+        return notInStageFile;
     }
 
     public static void checkout(String fileName) {
@@ -352,9 +383,7 @@ public class Repository {
 
         //没有版本控制的文件且要被覆写
         if (unTrackedFiles.stream().anyMatch(allBranchFile::containsKey)) {
-            System.out.println("There is an untracked file in the way;"
-                    + " delete it, or add and commit it first.");
-            System.exit(0);
+            throwUnTrackedError();
         }
 
         allTrackedFile.keySet().stream()
@@ -367,6 +396,11 @@ public class Repository {
 
     }
 
+    private static void throwUnTrackedError() {
+        System.out.println("There is an untracked file in the way;"
+                + " delete it, or add and commit it first.");
+        System.exit(0);
+    }
     private static void clearStage() {
         Stage stage = readStage();
         stage.getAddBlobs().clear();
@@ -449,10 +483,7 @@ public class Repository {
         validateBranch(branch, 2);
 
         Stage stage = readStage();
-        if (!stage.getAddBlobs().isEmpty() || !stage.getRemoveBlobs().isEmpty()) {
-            System.out.println("You have uncommitted changes.");
-            System.exit(0);
-        }
+        validateStageEmpty(stage);
 
         String curBranch = readBranch();
         if (curBranch.equals(branch)) {
@@ -461,6 +492,12 @@ public class Repository {
         }
 
         currentCommit = readCurCommit();
+        Map<String, String> curBlobMap = currentCommit.getBlobNameToHash();
+        List<String> allCurFiles = plainFilenamesIn(CWD);
+        if (allCurFiles.stream().anyMatch(i -> !curBlobMap.containsKey(i))) {
+            throwUnTrackedError();
+        }
+
         String branchCommitHash = readContentsAsString(join(HEADS_DIR, branch));
         Commit branchCommit = readCommit(branchCommitHash);
         String splitPointHash = findSplitPoint(currentCommit, branchCommit);
@@ -489,28 +526,11 @@ public class Repository {
         findDiffFromCommits(splitCommit, branchCommit, branchModify,
                 branchUnModify, branchAdd, branchDelete);
 
-        Map<String, String> curBlobMap = currentCommit.getBlobNameToHash();
         Map<String, String> branchBlobMap = branchCommit.getBlobNameToHash();
-        //branch: 文件已修改    HEAD: 未修改 --> branch, stage
-        branchModify.keySet().stream().filter(curUnModify::containsKey)
-                .forEach(i -> {
-                    String hash = branchBlobMap.get(i);
-                    writeFileFromBlob(i, hash);
-                    stage.getAddBlobs().put(i, hash);
-                });
-        //split point: 没有文件 branch: 有文件   HEAD: 无 --> branch, stage
-        branchAdd.keySet().stream().filter(i -> !curAdd.containsKey(i))
-                .forEach(i -> {
-                    String hash = branchBlobMap.get(i);
-                    writeFileFromBlob(i, hash);
-                    stage.getAddBlobs().put(i, hash);
-                });
-        //split point: 存在文件 branch: 删除 HEAD: 未修改 --> 删除, stage
-        branchDelete.keySet().stream().filter(curUnModify::containsKey)
-                .forEach(i -> {
-                    restrictedDelete(join(CWD, i));
-                    stage.getRemoveBlobs().put(i, curBlobMap.get(i));
-                });
+
+        addOrDeleteFile(branchModify, branchAdd, branchDelete,
+                curUnModify, curAdd, branchBlobMap, curBlobMap, stage);
+
         //branch: 修改不一致 HEAD: 修改 --> conflict
         //branch: 修改或删除 HEAD: 删除或修改 --> conflict
         List<String> conflictFiles = new ArrayList<>();
@@ -531,25 +551,7 @@ public class Repository {
             }
         }
         if (!conflictFiles.isEmpty()) {
-            Blob blob;
-            System.out.println("Encountered a merge conflict.");
-            String curBlobHash, branchBlobHash;
-            for (var fileName : conflictFiles) {
-                StringBuilder content = new StringBuilder("<<<<<<< HEAD\n");
-                curBlobHash = curBlobMap.get(fileName);
-                if (curBlobHash != null) {
-                    blob = readObject(join(BLOBS_DIR, curBlobHash), Blob.class);
-                    content.append(blob.getFileContent());
-                }
-                content.append("=======\n");
-                branchBlobHash = branchBlobMap.get(fileName);
-                if (branchBlobHash != null) {
-                    blob = readObject(join(BLOBS_DIR, branchBlobHash), Blob.class);
-                    content.append(blob.getFileContent());
-                }
-                content.append(">>>>>>>\n");
-                writeContents(join(CWD, fileName), content.toString());
-            }
+            generateConflictContent(conflictFiles, curBlobMap, branchBlobMap);
         }
         String mergeMessage = String.format("Merged %s into %s.", branch, curBranch);
         curBlobMap.putAll(stage.getAddBlobs());
@@ -560,6 +562,58 @@ public class Repository {
         mergeCommit.save();
         writeContents(join(HEADS_DIR, curBranch), mergeCommit.getHash());
 
+    }
+
+    private static void addOrDeleteFile(Map<String, String> branchModify,
+                                        Map<String, String> branchAdd,
+                                        Map<String, String> branchDelete,
+                                        Map<String, String> curUnModify,
+                                        Map<String, String> curAdd,
+                                        Map<String, String> branchBlobMap,
+                                        Map<String, String> curBlobMap,
+                                        Stage stage) {
+        //branch: 文件已修改    HEAD: 未修改 --> branch, stage
+        branchModify.keySet().stream().filter(curUnModify::containsKey)
+                .forEach(i -> {
+                    String hash = branchBlobMap.get(i);
+                    writeFileFromBlob(i, hash);
+                    stage.getAddBlobs().put(i, hash);
+                });
+        //split point: 没有文件 branch: 有文件   HEAD: 无 --> branch, stage
+        branchAdd.keySet().stream().filter(i -> !curAdd.containsKey(i))
+                .forEach(i -> {
+                    String hash = branchBlobMap.get(i);
+                    writeFileFromBlob(i, hash);
+                    stage.getAddBlobs().put(i, hash);
+                });
+        //split point: 存在文件 branch: 删除 HEAD: 未修改 --> 删除, stage
+        branchDelete.keySet().stream().filter(curUnModify::containsKey)
+                .forEach(i -> {
+                    restrictedDelete(join(CWD, i));
+                    stage.getRemoveBlobs().put(i, curBlobMap.get(i));
+                });
+    }
+
+    private static void generateConflictContent(List<String> conflictFiles, Map<String, String> curBlobMap, Map<String, String> branchBlobMap) {
+        Blob blob;
+        System.out.println("Encountered a merge conflict.");
+        String curBlobHash, branchBlobHash;
+        for (var fileName : conflictFiles) {
+            StringBuilder content = new StringBuilder("<<<<<<< HEAD\n");
+            curBlobHash = curBlobMap.get(fileName);
+            if (curBlobHash != null) {
+                blob = readObject(join(BLOBS_DIR, curBlobHash), Blob.class);
+                content.append(blob.getFileContent());
+            }
+            content.append("=======\n");
+            branchBlobHash = branchBlobMap.get(fileName);
+            if (branchBlobHash != null) {
+                blob = readObject(join(BLOBS_DIR, branchBlobHash), Blob.class);
+                content.append(blob.getFileContent());
+            }
+            content.append(">>>>>>>\n");
+            writeContents(join(CWD, fileName), content.toString());
+        }
     }
 
     private static String findSplitPoint(Commit curCommit, Commit givenCommit) {
@@ -639,5 +693,12 @@ public class Repository {
     private static void writeFileFromBlob(String fileName, String blobHash) {
         Blob blob = readObject(join(BLOBS_DIR, blobHash), Blob.class);
         writeContents(join(CWD, fileName), blob.getFileContent());
+    }
+
+    private static void validateStageEmpty(Stage stage) {
+        if (!stage.getAddBlobs().isEmpty() || !stage.getRemoveBlobs().isEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
     }
 }
