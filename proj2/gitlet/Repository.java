@@ -50,8 +50,8 @@ public class Repository {
 
     public static void init() {
         if (GITLET_DIR.exists()) {
-            System.out.println("A Gitlet version-control system already" +
-                    " exists in the current directory.");
+            System.out.println("A Gitlet version-control system already"
+                    + " exists in the current directory.");
             System.exit(0);
         }
         COMMITS_DIR.mkdirs();
@@ -98,9 +98,7 @@ public class Repository {
             addBlobs.remove(fileName);
             removeBlobs.remove(fileName);
             writeStage(stage);
-        }
-        //在stage remove中
-        else if(removeBlobs.containsValue(blobHash)) {
+        } else if (removeBlobs.containsValue(blobHash)) {
             removeBlobs.remove(fileName);
             addBlobs.put(fileName, blob.getFileHash());
             writeStage(stage);
@@ -131,18 +129,22 @@ public class Repository {
 
     private static Commit readCommit(String commitHash) {
         if (commitHash.length() == 40) {
-            return readObject(join(COMMITS_DIR, commitHash), Commit.class);
+            File commit = join(COMMITS_DIR, commitHash);
+            if(commit.exists()) {
+                return readObject(commit, Commit.class);
+            }
         }
         else {
             List<String> commitsHashList = plainFilenamesIn(COMMITS_DIR);
             String fullHash = commitsHashList.stream().filter(hash -> hash.startsWith(commitHash))
                     .findFirst().orElse(null);
-            if(fullHash == null) {
-                System.out.println("No commit with that id exists.");
-                System.exit(0);
+            if (fullHash != null) {
+                return readObject(join(COMMITS_DIR, fullHash), Commit.class);
             }
-            return readObject(join(COMMITS_DIR, fullHash), Commit.class);
         }
+        System.out.println("No commit with that id exists.");
+        System.exit(0);
+        return null;
     }
 
     public static void commit(String message) {
@@ -196,9 +198,8 @@ public class Repository {
         if (blobNameToHash.containsKey(fileName)) {
             join(CWD, fileName).delete();
             stage.getRemoveBlobs().put(fileName, blobNameToHash.get(fileName));
-        }
+        } else if (f) {
         //不在stage和commit里
-        else if (f) {
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
@@ -212,8 +213,7 @@ public class Repository {
             printCommit(currentCommit);
             if (currentCommit.getParents() != null) {
                 currentCommit = readCommit(currentCommit.getParents().get(0));
-            }
-            else break;
+            } else break;
         }
     }
 
@@ -250,8 +250,7 @@ public class Repository {
             for(String hash : hashList) {
                 System.out.println(hash);
             }
-        }
-        else {
+        } else {
             System.out.println("Found no commit with that message.");
         }
     }
@@ -290,8 +289,7 @@ public class Repository {
         String fileHash = currentCommit.getBlobNameToHash().get(fileName);
         if (fileHash != null) {
             writeFile(fileHash);
-        }
-        else{
+        } else{
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
@@ -352,7 +350,8 @@ public class Repository {
 
         //没有版本控制的文件且要被覆写
         if (unTrackedFiles.stream().anyMatch(allBranchFile::containsKey)) {
-            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.out.println("There is an untracked file in the way;"
+                    + " delete it, or add and commit it first.");
             System.exit(0);
         }
 
@@ -389,12 +388,11 @@ public class Repository {
     private static void validateBranch(String branch, int flag) {
         List<String> allBranch = plainFilenamesIn(HEADS_DIR);
         if (allBranch.contains(branch)) {
-            if(flag == 1) {
+            if (flag == 1) {
                 System.out.println("A branch with that name already exists.");
                 System.exit(0);
             }
-        }
-        else if(flag == 2) {
+        } else if(flag == 2) {
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
@@ -449,8 +447,8 @@ public class Repository {
         validateBranch(branch, 2);
 
         Stage stage = readStage();
-        if (stage.getAddBlobs().isEmpty() || stage.getRemoveBlobs().isEmpty()) ;
-        else {
+        if (stage.getAddBlobs().isEmpty() || stage.getRemoveBlobs().isEmpty()) {
+        } else {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
@@ -506,7 +504,7 @@ public class Repository {
                     stage.getAddBlobs().put(i, hash);
                 });
         //split point: 存在文件 branch: 删除 HEAD: 未修改 --> 删除, stage
-        branchDelete.keySet().stream().filter(i -> !curUnModify.containsKey(i))
+        branchDelete.keySet().stream().filter(curUnModify::containsKey)
                 .forEach(i -> {
                     restrictedDelete(join(CWD, i));
                     stage.getRemoveBlobs().put(i, curBlobMap.get(i));
@@ -532,25 +530,26 @@ public class Repository {
             for (var fileName : conflictFiles) {
                 StringBuilder content = new StringBuilder("<<<<<<< HEAD\n");
                 curBlobContent = curBlobMap.get(fileName);
-                if(curBlobContent != null) {
+                if (curBlobContent != null) {
                     content.append(curBlobContent);
                 }
                 content.append("\n=======\n");
                 branchBlobContent = branchBlobMap.get(fileName);
-                if(branchBlobContent != null){
+                if (branchBlobContent != null) {
                     content.append(branchBlobContent);
                 }
                 content.append("\n>>>>>>>\n");
                 writeContents(join(CWD, fileName), content.toString());
             }
-            String mergeMessage = String.format("Merged %s into %s.", branch, curBranch);
-            curBlobMap.putAll(stage.getAddBlobs());
-            stage.getRemoveBlobs().keySet().forEach(curBlobMap::remove);
-            clearStage();
-            Commit mergeCommit = new Commit(mergeMessage, List.of(curCommitHash, branchCommitHash), curBlobMap);
-            mergeCommit.save();
-            writeContents(join(HEADS_DIR, curBranch), mergeCommit.getHash());
         }
+        String mergeMessage = String.format("Merged %s into %s.", branch, curBranch);
+        curBlobMap.putAll(stage.getAddBlobs());
+        stage.getRemoveBlobs().keySet().forEach(curBlobMap::remove);
+        clearStage();
+        Commit mergeCommit = new Commit(mergeMessage, List.of(curCommitHash, branchCommitHash), curBlobMap);
+        mergeCommit.save();
+        writeContents(join(HEADS_DIR, curBranch), mergeCommit.getHash());
+
     }
 
     private static String findSplitPoint(Commit curCommit, Commit givenCommit) {
@@ -623,7 +622,7 @@ public class Repository {
     }
 
     private static void writeFileFromBlob(String fileName, String blobHash) {
-        String newContent = readContentsAsString(join(BLOBS_DIR, blobHash));
-        writeContents(join(CWD, fileName), newContent);
+        Blob blob = readObject(join(BLOBS_DIR, blobHash), Blob.class);
+        writeContents(join(CWD, fileName), blob.getFileContent());
     }
 }
