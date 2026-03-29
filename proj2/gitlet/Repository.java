@@ -130,7 +130,7 @@ public class Repository {
     private static Commit readCommit(String commitHash) {
         if (commitHash.length() == 40) {
             File commit = join(COMMITS_DIR, commitHash);
-            if(commit.exists()) {
+            if (commit.exists()) {
                 return readObject(commit, Commit.class);
             }
         }
@@ -209,11 +209,13 @@ public class Repository {
     public static void log() {
         initCheck();
         currentCommit = readCurCommit();
-        while(currentCommit != null) {
+        while (currentCommit != null) {
             printCommit(currentCommit);
             if (currentCommit.getParents() != null) {
                 currentCommit = readCommit(currentCommit.getParents().get(0));
-            } else break;
+            } else {
+                break;
+            }
         }
     }
 
@@ -222,7 +224,8 @@ public class Repository {
         System.out.println("commit " + commit.getHash());
         List<String> parents = commit.getParents();
         if (parents != null && parents.size() > 1) {
-            System.out.println("Merge: " + parents.get(0).substring(0, 7) + " " + parents.get(1).substring(0, 7));
+            System.out.println("Merge: " + parents.get(0).substring(0, 7)
+                    + " " + parents.get(1).substring(0, 7));
         }
         System.out.println("Date: " + commit.getTimestamp());
         System.out.println(commit.getMessage());
@@ -247,7 +250,7 @@ public class Repository {
                 .collect(Collectors.toList());
 
         if (!hashList.isEmpty()) {
-            for(String hash : hashList) {
+            for (String hash : hashList) {
                 System.out.println(hash);
             }
         } else {
@@ -289,7 +292,7 @@ public class Repository {
         String fileHash = currentCommit.getBlobNameToHash().get(fileName);
         if (fileHash != null) {
             writeFile(fileHash);
-        } else{
+        } else {
             System.out.println("File does not exist in that commit.");
             System.exit(0);
         }
@@ -447,8 +450,7 @@ public class Repository {
         validateBranch(branch, 2);
 
         Stage stage = readStage();
-        if (stage.getAddBlobs().isEmpty() || stage.getRemoveBlobs().isEmpty()) {
-        } else {
+        if (!stage.getAddBlobs().isEmpty() || !stage.getRemoveBlobs().isEmpty()) {
             System.out.println("You have uncommitted changes.");
             System.exit(0);
         }
@@ -485,7 +487,8 @@ public class Repository {
 
         Commit splitCommit = readCommit(splitPointHash);
         findDiffFromCommits(splitCommit, currentCommit, curModify, curUnModify, curAdd, curDelete);
-        findDiffFromCommits(splitCommit, branchCommit, branchModify, branchUnModify, branchAdd, branchDelete);
+        findDiffFromCommits(splitCommit, branchCommit, branchModify,
+                branchUnModify, branchAdd, branchDelete);
 
         Map<String, String> curBlobMap = currentCommit.getBlobNameToHash();
         Map<String, String> branchBlobMap = branchCommit.getBlobNameToHash();
@@ -512,31 +515,36 @@ public class Repository {
         //branch: 修改不一致 HEAD: 修改 --> conflict
         //branch: 修改或删除 HEAD: 删除或修改 --> conflict
         List<String> conflictFiles = new ArrayList<>();
-        for(var fileName : branchModify.keySet()) {
-            if (curModify.containsKey(fileName) &&
-                    !curBlobMap.get(fileName).equals(branchBlobMap.get(fileName))) {
+        for (var fileName : branchModify.keySet()) {
+            if (curModify.containsKey(fileName)
+                   && !curBlobMap.get(fileName).equals(branchBlobMap.get(fileName))) {
                 conflictFiles.add(fileName);
             }
 
-            if (curDelete.containsKey(fileName)) conflictFiles.add(fileName);
+            if (curDelete.containsKey(fileName)) {
+                conflictFiles.add(fileName);
+            }
         }
 
         for(var fileName : curModify.keySet()) {
             if (branchDelete.containsKey(fileName)) conflictFiles.add(fileName);
         }
         if (!conflictFiles.isEmpty()) {
+            Blob blob;
             System.out.println("Encountered a merge conflict.");
-            String curBlobContent, branchBlobContent;
+            String curBlobHash, branchBlobHash;
             for (var fileName : conflictFiles) {
                 StringBuilder content = new StringBuilder("<<<<<<< HEAD\n");
-                curBlobContent = curBlobMap.get(fileName);
-                if (curBlobContent != null) {
-                    content.append(curBlobContent);
+                curBlobHash = curBlobMap.get(fileName);
+                if (curBlobHash != null) {
+                    blob = readObject(join(BLOBS_DIR, curBlobHash), Blob.class);
+                    content.append(blob.getFileContent());
                 }
                 content.append("\n=======\n");
-                branchBlobContent = branchBlobMap.get(fileName);
-                if (branchBlobContent != null) {
-                    content.append(branchBlobContent);
+                branchBlobHash = branchBlobMap.get(fileName);
+                if (branchBlobHash != null) {
+                    blob = readObject(join(BLOBS_DIR, branchBlobHash), Blob.class);
+                    content.append(blob.getFileContent());
                 }
                 content.append("\n>>>>>>>\n");
                 writeContents(join(CWD, fileName), content.toString());
@@ -546,7 +554,8 @@ public class Repository {
         curBlobMap.putAll(stage.getAddBlobs());
         stage.getRemoveBlobs().keySet().forEach(curBlobMap::remove);
         clearStage();
-        Commit mergeCommit = new Commit(mergeMessage, List.of(curCommitHash, branchCommitHash), curBlobMap);
+        Commit mergeCommit = new Commit(mergeMessage,
+                List.of(curCommitHash, branchCommitHash), curBlobMap);
         mergeCommit.save();
         writeContents(join(HEADS_DIR, curBranch), mergeCommit.getHash());
 
@@ -569,7 +578,7 @@ public class Repository {
             commitDeque2.addAll(commit2.getParents());
         }
 
-        while(!commitDeque1.isEmpty() || !commitDeque2.isEmpty()) {
+        while (!commitDeque1.isEmpty() || !commitDeque2.isEmpty()) {
             if (!commitDeque1.isEmpty()) {
                 commitHash1 = commitDeque1.pop();
                 if (set2.contains(commitHash1)) {
@@ -600,20 +609,19 @@ public class Repository {
     }
 
     private static void findDiffFromCommits(Commit commit1, Commit commit2,
-                                            Map<String, String> modifyFile, Map<String, String> unModifyFile, Map<String, String> addFile, Map<String, String> deleteFile) {
+                                            Map<String, String> modifyFile, Map<String, String> unModifyFile,
+                                            Map<String, String> addFile, Map<String, String> deleteFile) {
 
         Map<String, String> commit1Files = commit1.getBlobNameToHash();
         Map<String, String> commit2Files = commit2.getBlobNameToHash();
 
-        for(var s : commit1Files.keySet()) {
+        for (var s : commit1Files.keySet()) {
             //同时存在, 比较内容
             if (commit2Files.containsKey(s)) {
                 if (commit1Files.get(s).equals(commit2Files.get(s))) {
                     unModifyFile.put(s, commit1Files.get(s));
-                }
-                else modifyFile.put(s, commit1Files.get(s));
-            }
-            else deleteFile.put(s, commit1Files.get(s));
+                } else modifyFile.put(s, commit1Files.get(s));
+            } else deleteFile.put(s, commit1Files.get(s));
         }
         //增加的文件
         commit2Files.keySet().stream().filter(i -> !commit1Files.containsKey(i))

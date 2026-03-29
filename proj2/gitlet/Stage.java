@@ -17,12 +17,8 @@ public class Stage implements Serializable {
         return removeBlobs;
     }
 
-    public Stage(){
+    public Stage() {
         addBlobs = new HashMap<>();
         removeBlobs = new HashMap<>();
-    }
-
-    public boolean fileExists(String fileHash){
-        return addBlobs.containsValue(fileHash) || removeBlobs.containsValue(fileHash);
     }
 }
